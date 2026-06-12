@@ -1,0 +1,75 @@
+name: dunckops-platform
+
+services:
+  api:
+    container_name: dunckops-api
+    image: ghcr.io/${REGISTRY_OWNER:-dunck01}/dunckops-api:${DUNCKOPS_VERSION:-latest}
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: ${ConnectionStrings__DefaultConnection:?ConnectionStrings__DefaultConnection is required}
+      Encryption__MasterKey: ${Encryption__MasterKey:?Encryption__MasterKey is required}
+      Jwt__Key: ${Jwt__Key:?Jwt__Key is required}
+      Jwt__Issuer: ${Jwt__Issuer:-pitr}
+      Jwt__Audience: ${Jwt__Audience:-pitr}
+      DOCKER_ALLOW_ANY_CONTAINER: ${DOCKER_ALLOW_ANY_CONTAINER:-false}
+      DOCKER_AGENT_URL: ${DOCKER_AGENT_URL:-http://docker-agent:8080}
+      DOCKER_AGENT_KEY: ${DOCKER_AGENT_KEY:?DOCKER_AGENT_KEY is required}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+      VITE_COMMERCIAL_API_URL: ${VITE_COMMERCIAL_API_URL:-}
+      CommercialAuth__ApiUrl: ${CommercialAuth__ApiUrl:-}
+    ports:
+      - "${API_PORT:-9000}:8080"
+    volumes:
+      - dunckops-local-backups:/backups
+    labels:
+      dunckops.managed: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  worker:
+    container_name: dunckops-worker
+    image: ghcr.io/${REGISTRY_OWNER:-dunck01}/dunckops-worker:${DUNCKOPS_VERSION:-latest}
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ConnectionStrings__DefaultConnection: ${ConnectionStrings__DefaultConnection:?ConnectionStrings__DefaultConnection is required}
+      Encryption__MasterKey: ${Encryption__MasterKey:?Encryption__MasterKey is required}
+      Jwt__Key: ${Jwt__Key:?Jwt__Key is required}
+      Jwt__Issuer: ${Jwt__Issuer:-pitr}
+      Jwt__Audience: ${Jwt__Audience:-pitr}
+      DOCKER_ALLOW_ANY_CONTAINER: ${DOCKER_ALLOW_ANY_CONTAINER:-false}
+      DOCKER_AGENT_URL: ${DOCKER_AGENT_URL:-http://docker-agent:8080}
+      DOCKER_AGENT_KEY: ${DOCKER_AGENT_KEY:?DOCKER_AGENT_KEY is required}
+      VITE_COMMERCIAL_API_URL: ${VITE_COMMERCIAL_API_URL:-}
+      CommercialAuth__ApiUrl: ${CommercialAuth__ApiUrl:-}
+    depends_on:
+      api:
+        condition: service_healthy
+    volumes:
+      - dunckops-local-backups:/backups
+    labels:
+      dunckops.managed: "true"
+    restart: unless-stopped
+
+  web:
+    container_name: dunckops-web
+    image: ghcr.io/${REGISTRY_OWNER:-dunck01}/dunckops-web:${DUNCKOPS_VERSION:-latest}
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${WEB_PORT:-5173}:80"
+    labels:
+      dunckops.managed: "true"
+    restart: unless-stopped
+
+volumes:
+  dunckops-local-backups:
+    name: dunckops-local-backups
+    labels:
+      dunckops.managed: "true"

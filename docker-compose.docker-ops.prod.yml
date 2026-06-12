@@ -1,0 +1,35 @@
+name: dunckops-platform
+
+services:
+  api:
+    environment:
+      DOCKER_OPERATIONS_ENABLED: "true"
+      DOCKER_AGENT_URL: "http://docker-agent:8080"
+      DOCKER_AGENT_KEY: ${DOCKER_AGENT_KEY:?DOCKER_AGENT_KEY is required}
+    depends_on:
+      - docker-agent
+
+  docker-agent:
+    container_name: dunckops-docker-agent
+    image: ghcr.io/${REGISTRY_OWNER:-dunck01}/dunckops-docker-agent:${DUNCKOPS_VERSION:-latest}
+    environment:
+      PORT: ${DOCKER_AGENT_CONTAINER_PORT:-8080}
+      AGENT_KEY: ${DOCKER_AGENT_KEY:?DOCKER_AGENT_KEY is required}
+      DOCKER_ALLOW_ANY_CONTAINER: ${DOCKER_ALLOW_ANY_CONTAINER:-false}
+      BACKUP_RUNTIME_IMAGE: ${BACKUP_RUNTIME_IMAGE:-ghcr.io/${REGISTRY_OWNER:-dunck01}/dunckops-backup-runtime:${DUNCKOPS_VERSION:-latest}}
+      BACKUP_RUNTIME_NETWORK: ${BACKUP_RUNTIME_NETWORK:-dunckops-platform_default}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - "${DOCKER_AGENT_HOST_PORT:-9011}:${DOCKER_AGENT_CONTAINER_PORT:-8080}"
+    labels:
+      dunckops.managed: "true"
+    restart: unless-stopped
+
+  backup-runtime:
+    container_name: dunckops-backup-runtime
+    image: ghcr.io/${REGISTRY_OWNER:-dunck01}/dunckops-backup-runtime:${DUNCKOPS_VERSION:-latest}
+    profiles:
+      - tools
+    labels:
+      dunckops.managed: "true"
