@@ -29,8 +29,8 @@ services:
     volumes:
       - dunckops-minio-data:/data
     ports:
-      - "${LOCAL_MINIO_API_PORT:-9002}:9000"
-      - "${LOCAL_MINIO_CONSOLE_PORT:-9001}:9001"
+      - "127.0.0.1:${LOCAL_MINIO_API_PORT:-9002}:9000"
+      - "127.0.0.1:${LOCAL_MINIO_CONSOLE_PORT:-9001}:9001"
     labels:
       dunckops.managed: "true"
     restart: unless-stopped
