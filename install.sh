@@ -46,6 +46,25 @@ prompt_input() {
     printf -v "$result_var" '%s' "$value"
 }
 
+random_secret() {
+    if command -v openssl &> /dev/null; then
+        openssl rand -hex 32
+    else
+        tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 64
+    fi
+}
+
+set_env_value() {
+    local key="$1"
+    local value="$2"
+
+    if grep -q "^${key}=" .env; then
+        sed -i "s|^${key}=.*|${key}=${value}|" .env
+    else
+        echo "${key}=${value}" >> .env
+    fi
+}
+
 if ! command -v docker &> /dev/null; then
     echo "ERRO: Docker nao esta instalado."
     echo "Instale o Docker: https://docs.docker.com/engine/install/"
@@ -131,44 +150,26 @@ if [ ! -f .env ]; then
         touch .env
     fi
 
-    echo "Preencha os valores obrigatorios no arquivo .env:"
+    echo "Gerando secrets locais no arquivo .env:"
     echo ""
 
-    if ! prompt_input "  ConnectionStrings__DefaultConnection [Host=...]: " db_conn; then
-        echo "ERRO: Nao foi possivel ler ConnectionStrings__DefaultConnection."
-        exit 1
-    fi
-    if ! prompt_input "  Encryption__MasterKey (32+ caracteres)  : " enc_key true; then
-        echo "ERRO: Nao foi possivel ler Encryption__MasterKey."
-        exit 1
-    fi
-    if ! prompt_input "  Jwt__Key (32+ caracteres)                : " jwt_key true; then
-        echo "ERRO: Nao foi possivel ler Jwt__Key."
-        exit 1
-    fi
-    if ! prompt_input "  DOCKER_AGENT_KEY (32+ caracteres)        : " agent_key true; then
-        echo "ERRO: Nao foi possivel ler DOCKER_AGENT_KEY."
-        exit 1
-    fi
+    db_password="$(random_secret)"
+    minio_access_key="dunckops$(random_secret | cut -c 1-16)"
+    minio_secret_key="$(random_secret)"
+    enc_key="$(random_secret)"
+    jwt_key="$(random_secret)"
+    agent_key="$(random_secret)"
 
     echo ""
     echo "Aplicando valores no .env..."
 
-    if [ -n "$db_conn" ]; then
-        sed -i "s|^ConnectionStrings__DefaultConnection=.*|ConnectionStrings__DefaultConnection=${db_conn}|" .env
-    fi
-    if [ -n "$enc_key" ]; then
-        sed -i "s|^Encryption__MasterKey=.*|Encryption__MasterKey=${enc_key}|" .env
-    fi
-    if [ -n "$jwt_key" ]; then
-        sed -i "s|^Jwt__Key=.*|Jwt__Key=${jwt_key}|" .env
-    fi
-    if [ -n "$agent_key" ]; then
-        sed -i "s|^DOCKER_AGENT_KEY=.*|DOCKER_AGENT_KEY=${agent_key}|" .env
-    fi
-
-    echo "" >> .env
-    echo "DUNCKOPS_LICENSE_KEY=${DUNCKOPS_LICENSE_KEY}" >> .env
+    set_env_value "DUNCKOPS_DB_PASSWORD" "$db_password"
+    set_env_value "LOCAL_MINIO_ACCESS_KEY" "$minio_access_key"
+    set_env_value "LOCAL_MINIO_SECRET_KEY" "$minio_secret_key"
+    set_env_value "Encryption__MasterKey" "$enc_key"
+    set_env_value "Jwt__Key" "$jwt_key"
+    set_env_value "DOCKER_AGENT_KEY" "$agent_key"
+    set_env_value "DUNCKOPS_LICENSE_KEY" "$DUNCKOPS_LICENSE_KEY"
 
     echo ""
     echo ".env configurado. Verifique o arquivo antes de continuar."

@@ -1,17 +1,77 @@
 name: dunckops-platform
 
 services:
+  dunckops-db:
+    container_name: dunckops-postgres
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${DUNCKOPS_DB_NAME:-pitr}
+      POSTGRES_USER: ${DUNCKOPS_DB_USER:-pitr}
+      POSTGRES_PASSWORD: ${DUNCKOPS_DB_PASSWORD:?DUNCKOPS_DB_PASSWORD is required}
+    volumes:
+      - dunckops-db-data:/var/lib/postgresql/data
+    labels:
+      dunckops.managed: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  minio:
+    container_name: dunckops-minio
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${LOCAL_MINIO_ACCESS_KEY:?LOCAL_MINIO_ACCESS_KEY is required}
+      MINIO_ROOT_PASSWORD: ${LOCAL_MINIO_SECRET_KEY:?LOCAL_MINIO_SECRET_KEY is required}
+    volumes:
+      - dunckops-minio-data:/data
+    ports:
+      - "${LOCAL_MINIO_API_PORT:-9002}:9000"
+      - "${LOCAL_MINIO_CONSOLE_PORT:-9001}:9001"
+    labels:
+      dunckops.managed: "true"
+    restart: unless-stopped
+
+  minio-init:
+    container_name: dunckops-minio-init
+    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+    depends_on:
+      minio:
+        condition: service_started
+    environment:
+      MINIO_ROOT_USER: ${LOCAL_MINIO_ACCESS_KEY:?LOCAL_MINIO_ACCESS_KEY is required}
+      MINIO_ROOT_PASSWORD: ${LOCAL_MINIO_SECRET_KEY:?LOCAL_MINIO_SECRET_KEY is required}
+      LOCAL_MINIO_BUCKET: ${LOCAL_MINIO_BUCKET:-pitr-local}
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set local http://minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD; do sleep 2; done &&
+      until mc ready local; do sleep 2; done &&
+      mc mb --ignore-existing local/$$LOCAL_MINIO_BUCKET
+      "
+    labels:
+      dunckops.managed: "true"
+    restart: "no"
+
   api:
     container_name: dunckops-api
     image: ghcr.io/${REGISTRY_OWNER:-dunck01}/dunckops-api:${DUNCKOPS_VERSION:-latest}
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__DefaultConnection: ${ConnectionStrings__DefaultConnection:?ConnectionStrings__DefaultConnection is required}
+      ConnectionStrings__DefaultConnection: Host=dunckops-db;Port=5432;Database=${DUNCKOPS_DB_NAME:-pitr};Username=${DUNCKOPS_DB_USER:-pitr};Password=${DUNCKOPS_DB_PASSWORD:?DUNCKOPS_DB_PASSWORD is required}
       Encryption__MasterKey: ${Encryption__MasterKey:?Encryption__MasterKey is required}
       Jwt__Key: ${Jwt__Key:?Jwt__Key is required}
       Jwt__Issuer: ${Jwt__Issuer:-pitr}
       Jwt__Audience: ${Jwt__Audience:-pitr}
+      LOCAL_ENVIRONMENT_ENABLED: "true"
+      LOCAL_MINIO_ENDPOINT: http://minio:9000
+      LOCAL_MINIO_EXTERNAL_ENDPOINT: http://localhost:${LOCAL_MINIO_API_PORT:-9002}
+      LOCAL_MINIO_BUCKET: ${LOCAL_MINIO_BUCKET:-pitr-local}
+      LOCAL_MINIO_ACCESS_KEY: ${LOCAL_MINIO_ACCESS_KEY:?LOCAL_MINIO_ACCESS_KEY is required}
+      LOCAL_MINIO_SECRET_KEY: ${LOCAL_MINIO_SECRET_KEY:?LOCAL_MINIO_SECRET_KEY is required}
       DOCKER_ALLOW_ANY_CONTAINER: ${DOCKER_ALLOW_ANY_CONTAINER:-false}
       DOCKER_AGENT_URL: ${DOCKER_AGENT_URL:-http://docker-agent:8080}
       DOCKER_AGENT_KEY: ${DOCKER_AGENT_KEY:?DOCKER_AGENT_KEY is required}
@@ -31,13 +91,20 @@ services:
       retries: 5
       start_period: 15s
     restart: unless-stopped
+    depends_on:
+      dunckops-db:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      minio-init:
+        condition: service_completed_successfully
 
   worker:
     container_name: dunckops-worker
     image: ghcr.io/${REGISTRY_OWNER:-dunck01}/dunckops-worker:${DUNCKOPS_VERSION:-latest}
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
-      ConnectionStrings__DefaultConnection: ${ConnectionStrings__DefaultConnection:?ConnectionStrings__DefaultConnection is required}
+      ConnectionStrings__DefaultConnection: Host=dunckops-db;Port=5432;Database=${DUNCKOPS_DB_NAME:-pitr};Username=${DUNCKOPS_DB_USER:-pitr};Password=${DUNCKOPS_DB_PASSWORD:?DUNCKOPS_DB_PASSWORD is required}
       Encryption__MasterKey: ${Encryption__MasterKey:?Encryption__MasterKey is required}
       Jwt__Key: ${Jwt__Key:?Jwt__Key is required}
       Jwt__Issuer: ${Jwt__Issuer:-pitr}
@@ -45,9 +112,16 @@ services:
       DOCKER_ALLOW_ANY_CONTAINER: ${DOCKER_ALLOW_ANY_CONTAINER:-false}
       DOCKER_AGENT_URL: ${DOCKER_AGENT_URL:-http://docker-agent:8080}
       DOCKER_AGENT_KEY: ${DOCKER_AGENT_KEY:?DOCKER_AGENT_KEY is required}
+      LOCAL_ENVIRONMENT_ENABLED: "true"
+      LOCAL_MINIO_ENDPOINT: http://minio:9000
+      LOCAL_MINIO_BUCKET: ${LOCAL_MINIO_BUCKET:-pitr-local}
+      LOCAL_MINIO_ACCESS_KEY: ${LOCAL_MINIO_ACCESS_KEY:?LOCAL_MINIO_ACCESS_KEY is required}
+      LOCAL_MINIO_SECRET_KEY: ${LOCAL_MINIO_SECRET_KEY:?LOCAL_MINIO_SECRET_KEY is required}
       VITE_COMMERCIAL_API_URL: ${VITE_COMMERCIAL_API_URL:-}
       CommercialAuth__ApiUrl: ${CommercialAuth__ApiUrl:-}
     depends_on:
+      dunckops-db:
+        condition: service_healthy
       api:
         condition: service_healthy
     volumes:
@@ -69,6 +143,14 @@ services:
     restart: unless-stopped
 
 volumes:
+  dunckops-db-data:
+    name: dunckops-db-data
+    labels:
+      dunckops.managed: "true"
+  dunckops-minio-data:
+    name: dunckops-minio-data
+    labels:
+      dunckops.managed: "true"
   dunckops-local-backups:
     name: dunckops-local-backups
     labels:
