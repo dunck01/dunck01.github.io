@@ -7,8 +7,6 @@ echo "=============================================="
 echo ""
 
 REGISTRY_OWNER="${REGISTRY_OWNER:-dunck01}"
-GITHUB_USER="${DUNCKOPS_GITHUB_USERNAME:-$REGISTRY_OWNER}"
-GITHUB_PAT="${DUNCKOPS_GITHUB_PAT:-}"
 BASE_URL="${DUNCKOPS_BASE_URL:-https://get.duncktech.com}"
 
 prompt_input() {
@@ -77,25 +75,11 @@ fi
 export DUNCKOPS_LICENSE_KEY
 
 echo ""
-echo "[1/6] Autenticando no registry de containers..."
-
-if [ -n "$GITHUB_PAT" ]; then
-    echo "$GITHUB_PAT" | docker login ghcr.io -u "$GITHUB_USER" --password-stdin
-else
-    printf 'Digite seu GitHub PAT para acessar o GHCR (ou Enter se ja estiver autenticado):\n'
-    if prompt_input "> " GITHUB_PAT true; then
-        if [ -n "$GITHUB_PAT" ]; then
-            echo "$GITHUB_PAT" | docker login ghcr.io -u "$GITHUB_USER" --password-stdin
-        else
-            echo "AVISO: nenhum PAT informado. Certifique-se de que o Docker ja esta autenticado no ghcr.io."
-        fi
-    else
-        echo "AVISO: nao foi possivel ler o PAT. Certifique-se de que o Docker ja esta autenticado no ghcr.io."
-    fi
-fi
+echo "[1/5] Preparando instalacao..."
+echo "Usando imagens publicas em ghcr.io/${REGISTRY_OWNER}."
 
 echo ""
-echo "[2/6] Baixando arquivos de configuracao..."
+echo "[2/5] Baixando arquivos de configuracao..."
 
 COMPOSE_FILE="docker-compose.prod.yml"
 DOCKER_OPS_FILE="docker-compose.docker-ops.prod.yml"
@@ -138,7 +122,7 @@ else
 fi
 
 echo ""
-echo "[3/6] Configurando variaveis de ambiente..."
+echo "[3/5] Configurando variaveis de ambiente..."
 
 if [ ! -f .env ]; then
     if [ -f .env.production.example ]; then
@@ -193,7 +177,7 @@ else
 fi
 
 echo ""
-echo "[4/6] Baixando imagens Docker..."
+echo "[4/5] Baixando imagens Docker..."
 
 COMPOSE_ARGS="-f $COMPOSE_FILE"
 
@@ -204,7 +188,7 @@ else
 fi
 
 echo ""
-echo "[5/6] Iniciando servicos..."
+echo "[5/5] Iniciando servicos..."
 
 if [ -f "$DOCKER_OPS_FILE" ]; then
     docker compose $COMPOSE_ARGS -f "$DOCKER_OPS_FILE" up -d
@@ -213,7 +197,8 @@ else
 fi
 
 echo ""
-echo "[6/6] Verificando status..."
+echo ""
+echo "Verificando status..."
 
 sleep 3
 docker compose $COMPOSE_ARGS ps
