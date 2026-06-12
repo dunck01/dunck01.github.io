@@ -100,8 +100,9 @@ echo "[2/6] Baixando arquivos de configuracao..."
 COMPOSE_FILE="docker-compose.prod.yml"
 DOCKER_OPS_FILE="docker-compose.docker-ops.prod.yml"
 ENV_EXAMPLE=".env.production.example"
+REMOTE_ENV_EXAMPLE="env.production.example"
 
-for filename in "$COMPOSE_FILE" "$DOCKER_OPS_FILE" "$ENV_EXAMPLE"; do
+for filename in "$COMPOSE_FILE" "$DOCKER_OPS_FILE"; do
     if [ -f "$filename" ]; then
         echo "  $filename (ja existe localmente)"
         continue
@@ -119,6 +120,22 @@ for filename in "$COMPOSE_FILE" "$DOCKER_OPS_FILE" "$ENV_EXAMPLE"; do
         echo "  $filename (nao disponivel, pulando)"
     fi
 done
+
+if [ -f "$ENV_EXAMPLE" ]; then
+    echo "  $ENV_EXAMPLE (ja existe localmente)"
+else
+    if command -v curl &> /dev/null; then
+        curl -fsSL "${BASE_URL}/${REMOTE_ENV_EXAMPLE}" -o "$ENV_EXAMPLE" || true
+    elif command -v wget &> /dev/null; then
+        wget -q "${BASE_URL}/${REMOTE_ENV_EXAMPLE}" -O "$ENV_EXAMPLE" || true
+    fi
+
+    if [ -f "$ENV_EXAMPLE" ]; then
+        echo "  $ENV_EXAMPLE (baixado)"
+    else
+        echo "  $ENV_EXAMPLE (nao disponivel, pulando)"
+    fi
+fi
 
 echo ""
 echo "[3/6] Configurando variaveis de ambiente..."
