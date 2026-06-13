@@ -187,7 +187,21 @@ if ! grep -q "^CORS_ORIGINS=" .env || grep -q "^CORS_ORIGINS=http://localhost:51
 fi
 
 echo ""
-echo "[4/5] Baixando imagens Docker..."
+echo "[4/5] Executando migracoes do .env..."
+if [ -f .env ]; then
+    if grep -q "commercial-api.dunckops.com" .env; then
+        echo "  - Atualizando URL da API Comercial antiga..."
+        sed -i 's|https://commercial-api.dunckops.com/api/v1|https://api.dunckops.com/api/v1|g' .env
+    fi
+    
+    if ! grep -q "^VITE_COMMERCIAL_API_URL=" .env; then
+        echo "  - Adicionando VITE_COMMERCIAL_API_URL..."
+        echo "VITE_COMMERCIAL_API_URL=/commercial-api" >> .env
+    fi
+fi
+
+echo ""
+echo "[5/5] Baixando imagens Docker..."
 
 COMPOSE_ARGS="-f $COMPOSE_FILE"
 
@@ -198,7 +212,7 @@ else
 fi
 
 echo ""
-echo "[5/5] Iniciando servicos..."
+echo "[6/6] Iniciando servicos..."
 
 if [ -f "$DOCKER_OPS_FILE" ]; then
     docker compose $COMPOSE_ARGS -f "$DOCKER_OPS_FILE" up -d
