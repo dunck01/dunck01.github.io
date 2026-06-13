@@ -66,14 +66,17 @@ set_env_value() {
 }
 
 if ! command -v docker &> /dev/null; then
-    echo "ERRO: Docker nao esta instalado."
-    echo "Instale o Docker: https://docs.docker.com/engine/install/"
-    exit 1
+    echo "Docker nao encontrado. Instalando..."
+    echo ""
+    curl -fsSL https://get.docker.com | sh
+    echo ""
+    echo "Docker instalado com sucesso."
 fi
 
 if ! docker compose version &> /dev/null; then
-    echo "ERRO: Docker Compose v2 nao esta instalado."
-    echo "Instale o Docker Compose: https://docs.docker.com/compose/install/"
+    echo "ERRO: Docker Compose v2 nao esta disponivel."
+    echo "O script oficial do Docker deveria ter instalado o Compose."
+    echo "Instale manualmente: https://docs.docker.com/compose/install/"
     exit 1
 fi
 
