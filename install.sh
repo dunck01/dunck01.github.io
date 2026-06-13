@@ -109,39 +109,28 @@ ENV_EXAMPLE=".env.production.example"
 REMOTE_ENV_EXAMPLE="env.production.example"
 
 for filename in "$COMPOSE_FILE" "$DOCKER_OPS_FILE"; do
-    if [ -f "$filename" ]; then
-        echo "  $filename (ja existe localmente)"
-        continue
-    fi
-
     if command -v curl &> /dev/null; then
-        curl -fsSL "${BASE_URL}/${filename}" -o "$filename" || true
+        curl -fsSL "${BASE_URL}/${filename}" -o "$filename"
     elif command -v wget &> /dev/null; then
-        wget -q "${BASE_URL}/${filename}" -O "$filename" || true
+        wget -q "${BASE_URL}/${filename}" -O "$filename"
+    else
+        echo "ERRO: curl ou wget nao esta instalado."
+        exit 1
     fi
 
-    if [ -f "$filename" ]; then
-        echo "  $filename (baixado)"
-    else
-        echo "  $filename (nao disponivel, pulando)"
-    fi
+    echo "  $filename (atualizado)"
 done
 
-if [ -f "$ENV_EXAMPLE" ]; then
-    echo "  $ENV_EXAMPLE (ja existe localmente)"
+if command -v curl &> /dev/null; then
+    curl -fsSL "${BASE_URL}/${REMOTE_ENV_EXAMPLE}" -o "$ENV_EXAMPLE"
+elif command -v wget &> /dev/null; then
+    wget -q "${BASE_URL}/${REMOTE_ENV_EXAMPLE}" -O "$ENV_EXAMPLE"
 else
-    if command -v curl &> /dev/null; then
-        curl -fsSL "${BASE_URL}/${REMOTE_ENV_EXAMPLE}" -o "$ENV_EXAMPLE" || true
-    elif command -v wget &> /dev/null; then
-        wget -q "${BASE_URL}/${REMOTE_ENV_EXAMPLE}" -O "$ENV_EXAMPLE" || true
-    fi
-
-    if [ -f "$ENV_EXAMPLE" ]; then
-        echo "  $ENV_EXAMPLE (baixado)"
-    else
-        echo "  $ENV_EXAMPLE (nao disponivel, pulando)"
-    fi
+    echo "ERRO: curl ou wget nao esta instalado."
+    exit 1
 fi
+
+echo "  $ENV_EXAMPLE (atualizado)"
 
 echo ""
 echo "[3/5] Configurando variaveis de ambiente..."
