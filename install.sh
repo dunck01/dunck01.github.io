@@ -80,17 +80,22 @@ if ! docker compose version &> /dev/null; then
     exit 1
 fi
 
+if [ -z "${DUNCKOPS_LICENSE_KEY:-}" ] && [ -f .env ]; then
+    existing_key="$(grep '^DUNCKOPS_LICENSE_KEY=' .env | cut -d'=' -f2-)"
+    if [ -n "$existing_key" ]; then
+        DUNCKOPS_LICENSE_KEY="$existing_key"
+        echo "License key encontrada no .env existente."
+    fi
+fi
+
 if [ -z "${DUNCKOPS_LICENSE_KEY:-}" ]; then
-    printf 'Digite sua chave de licenca DunckOps:\n'
-    printf '  (Obtenha sua chave em https://dunckops.com/dashboard)\n'
+    printf 'Digite sua chave de licenca DunckOps (ou pressione Enter para configurar depois via Web UI):\n'
     if ! prompt_input "> " DUNCKOPS_LICENSE_KEY true; then
-        echo "ERRO: Nao foi possivel ler a chave de licenca."
-        exit 1
+        echo "Aviso: Nao foi possivel ler a chave de licenca, ela devera ser configurada na Web UI."
     fi
 
     if [ -z "$DUNCKOPS_LICENSE_KEY" ]; then
-        echo "ERRO: Chave de licenca e obrigatoria."
-        exit 1
+        echo "Aviso: Chave de licenca nao fornecida. Configure depois em /setup ou na Web UI."
     fi
 fi
 
