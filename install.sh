@@ -65,6 +65,41 @@ set_env_value() {
     fi
 }
 
+download_file() {
+    local url="$1"
+    local output="$2"
+
+    if command -v curl &> /dev/null; then
+        curl -fsSL "$url" -o "$output"
+    elif command -v wget &> /dev/null; then
+        wget -q "$url" -O "$output"
+    else
+        echo "ERRO: curl ou wget nao esta instalado."
+        exit 1
+    fi
+}
+
+build_postgres_images() {
+    local source_base="${POSTGRES_IMAGE_SOURCE_BASE:-https://raw.githubusercontent.com/dunck01/projects-db-pitr/main/infra/docker/postgres}"
+    local majors="${POSTGRES_IMAGE_MAJORS:-15 16 17}"
+    local tmp_dir
+
+    tmp_dir="$(mktemp -d)"
+
+    download_file "${source_base}/Dockerfile" "${tmp_dir}/Dockerfile"
+    download_file "${source_base}/wal-push-wrapper.sh" "${tmp_dir}/wal-push-wrapper.sh"
+
+    for major in $majors; do
+        echo "  - Construindo dunckops-postgres:${major}-alpine..."
+        docker build \
+            -t "dunckops-postgres:${major}-alpine" \
+            --build-arg "POSTGRES_MAJOR=${major}" \
+            "$tmp_dir"
+    done
+
+    rm -rf "$tmp_dir"
+}
+
 if ! command -v docker &> /dev/null; then
     echo "Docker nao encontrado. Instalando..."
     echo ""
@@ -114,26 +149,12 @@ ENV_EXAMPLE=".env.production.example"
 REMOTE_ENV_EXAMPLE="env.production.example"
 
 for filename in "$COMPOSE_FILE" "$DOCKER_OPS_FILE"; do
-    if command -v curl &> /dev/null; then
-        curl -fsSL "${BASE_URL}/${filename}" -o "$filename"
-    elif command -v wget &> /dev/null; then
-        wget -q "${BASE_URL}/${filename}" -O "$filename"
-    else
-        echo "ERRO: curl ou wget nao esta instalado."
-        exit 1
-    fi
+    download_file "${BASE_URL}/${filename}" "$filename"
 
     echo "  $filename (atualizado)"
 done
 
-if command -v curl &> /dev/null; then
-    curl -fsSL "${BASE_URL}/${REMOTE_ENV_EXAMPLE}" -o "$ENV_EXAMPLE"
-elif command -v wget &> /dev/null; then
-    wget -q "${BASE_URL}/${REMOTE_ENV_EXAMPLE}" -O "$ENV_EXAMPLE"
-else
-    echo "ERRO: curl ou wget nao esta instalado."
-    exit 1
-fi
+download_file "${BASE_URL}/${REMOTE_ENV_EXAMPLE}" "$ENV_EXAMPLE"
 
 echo "  $ENV_EXAMPLE (atualizado)"
 
@@ -212,8 +233,8 @@ else
 fi
 
 echo ""
-echo "  - Baixando imagem padrao do PostgreSQL 17..."
-docker pull ghcr.io/${REGISTRY_OWNER:-dunck01}/dunckops-postgres:17-alpine || true
+echo "Construindo imagens customizadas do PostgreSQL..."
+build_postgres_images
 
 echo ""
 echo "[6/6] Iniciando servicos..."
