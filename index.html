@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>DunckOps Installer</title>
+    <title>DunckOps Self-Hosted Installer</title>
     <meta
       name="description"
       content="Instalador publico do DunckOps Platform para ambientes self-hosted."
@@ -34,7 +34,7 @@
       }
 
       main {
-        width: min(920px, calc(100vw - 32px));
+        width: min(980px, calc(100vw - 32px));
         padding: 44px;
         border: 1px solid rgba(148, 163, 184, 0.22);
         border-radius: 28px;
@@ -79,11 +79,65 @@
         white-space: nowrap;
       }
 
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 28px;
+      }
+
+      .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 44px;
+        padding: 0 18px;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #38bdf8, #2563eb);
+        color: #020617;
+        font-weight: 800;
+        text-decoration: none;
+      }
+
+      .button.secondary {
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        background: rgba(15, 23, 42, 0.86);
+        color: #dbeafe;
+      }
+
       nav {
         display: flex;
         flex-wrap: wrap;
         gap: 12px;
         margin-top: 28px;
+      }
+
+      .steps {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+        margin-top: 28px;
+      }
+
+      .step {
+        padding: 16px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 18px;
+        background: rgba(2, 6, 23, 0.38);
+      }
+
+      .step strong {
+        display: block;
+        color: #f8fafc;
+        font-size: 0.96rem;
+      }
+
+      .step span {
+        display: block;
+        margin-top: 8px;
+        color: #8fa3ba;
+        font-size: 0.9rem;
+        line-height: 1.55;
       }
 
       a {
@@ -105,22 +159,53 @@
         color: #64748b;
         font-size: 0.92rem;
       }
+
+      @media (max-width: 760px) {
+        main {
+          padding: 28px;
+        }
+
+        .steps {
+          grid-template-columns: 1fr;
+        }
+      }
     </style>
   </head>
   <body>
     <main>
       <p class="eyebrow">DunckOps Self-Hosted</p>
-      <h1>Instalador oficial DunckOps</h1>
+      <h1>Instale sua stack DunckOps em uma VPS</h1>
       <p>
-        Este dominio distribui os arquivos publicos de instalacao do DunckOps Platform.
-        O codigo-fonte permanece privado; a instalacao usa imagens publicas e uma license key.
+        Este dominio distribui o instalador self-hosted oficial. Para usar, compre um
+        plano ou acesse sua conta em dunckops.com, copie sua license key e execute o
+        comando abaixo na VPS.
       </p>
+      <div class="actions" aria-label="Acoes principais">
+        <a class="button" href="https://dunckops.com/">Ver planos no site oficial</a>
+        <a class="button secondary" href="https://dunckops.com/login">Entrar</a>
+        <a class="button secondary" href="https://dunckops.com/dashboard">Minhas licencas</a>
+      </div>
       <code>curl -fsSL https://get.dunckops.com/install.sh | sudo bash</code>
+      <section class="steps" aria-label="Fluxo de instalacao">
+        <div class="step">
+          <strong>1. Contrate ou entre</strong>
+          <span>Use o site oficial para contratar um plano ou acessar seu painel.</span>
+        </div>
+        <div class="step">
+          <strong>2. Copie a license key</strong>
+          <span>A chave fica no dashboard e sera solicitada durante a instalacao.</span>
+        </div>
+        <div class="step">
+          <strong>3. Rode na VPS</strong>
+          <span>O instalador sobe Postgres, MinIO, API, worker, web e Docker Agent.</span>
+        </div>
+      </section>
       <nav aria-label="Arquivos publicos">
         <a href="/install.sh">install.sh</a>
         <a href="/docker-compose.prod.yml">docker-compose.prod.yml</a>
         <a href="/docker-compose.docker-ops.prod.yml">docker-ops override</a>
         <a href="/env.production.example">env.production.example</a>
+        <a href="https://dunckops.com/">dunckops.com</a>
       </nav>
       <p class="note">Requisitos: Docker 24+, Docker Compose v2+ e uma license key ativa.</p>
     </main>
