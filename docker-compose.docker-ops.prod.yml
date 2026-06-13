@@ -16,6 +16,7 @@ services:
       PORT: ${DOCKER_AGENT_CONTAINER_PORT:-8080}
       AGENT_KEY: ${DOCKER_AGENT_KEY:?DOCKER_AGENT_KEY is required}
       DOCKER_ALLOW_ANY_CONTAINER: ${DOCKER_ALLOW_ANY_CONTAINER:-false}
+      POSTGRES_IMAGE_PREFIX: "ghcr.io/${REGISTRY_OWNER:-dunck01}/dunckops-postgres"
       BACKUP_RUNTIME_IMAGE: ${BACKUP_RUNTIME_IMAGE:-ghcr.io/${REGISTRY_OWNER:-dunck01}/dunckops-backup-runtime:${DUNCKOPS_VERSION:-latest}}
       BACKUP_RUNTIME_NETWORK: ${BACKUP_RUNTIME_NETWORK:-dunckops-platform_default}
     volumes:
