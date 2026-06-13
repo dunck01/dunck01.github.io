@@ -7,7 +7,7 @@ echo "=============================================="
 echo ""
 
 REGISTRY_OWNER="${REGISTRY_OWNER:-dunck01}"
-BASE_URL="${DUNCKOPS_BASE_URL:-https://get.duncktech.com}"
+BASE_URL="${DUNCKOPS_BASE_URL:-https://get.dunckops.com}"
 
 prompt_input() {
     local prompt_text="$1"
