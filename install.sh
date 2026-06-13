@@ -212,6 +212,10 @@ else
 fi
 
 echo ""
+echo "  - Baixando imagem padrao do PostgreSQL 17..."
+docker pull ghcr.io/${REGISTRY_OWNER:-dunck01}/dunckops-postgres:17-alpine || true
+
+echo ""
 echo "[6/6] Iniciando servicos..."
 
 if [ -f "$DOCKER_OPS_FILE" ]; then
