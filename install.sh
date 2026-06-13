@@ -169,6 +169,18 @@ else
     echo "Arquivo .env ja existe, mantendo configuracao atual."
 fi
 
+if ! grep -q "^WEB_PORT=" .env || grep -q "^WEB_PORT=5173$" .env; then
+    set_env_value "WEB_PORT" "9000"
+fi
+
+if ! grep -q "^API_PORT=" .env || grep -q "^API_PORT=9000$" .env; then
+    set_env_value "API_PORT" "9100"
+fi
+
+if ! grep -q "^CORS_ORIGINS=" .env || grep -q "^CORS_ORIGINS=http://localhost:5173$" .env; then
+    set_env_value "CORS_ORIGINS" "http://localhost:9000"
+fi
+
 echo ""
 echo "[4/5] Baixando imagens Docker..."
 
@@ -202,8 +214,8 @@ echo "  Instalacao concluida!"
 echo "=============================================="
 echo ""
 echo "Servicos:"
-echo "  - API:    http://localhost:${API_PORT:-9000}"
-echo "  - Web:    http://localhost:${WEB_PORT:-5173}"
+echo "  - Web:    http://localhost:${WEB_PORT:-9000}"
+echo "  - API:    http://localhost:${API_PORT:-9100}"
 echo ""
 echo "Comandos uteis:"
 echo "  Status   : docker compose $COMPOSE_ARGS ps"
@@ -212,7 +224,7 @@ echo "  Atualizar: ./scripts/update.sh"
 echo "  Rollback : ./scripts/rollback.sh <versao>"
 echo ""
 echo "Proximos passos:"
-echo "  1. Acesse http://IP_DA_VPS:${WEB_PORT:-5173}/setup"
+echo "  1. Acesse http://IP_DA_VPS:${WEB_PORT:-9000}/setup"
 echo "  2. Conclua a configuracao inicial da instancia"
-echo "  3. Depois use http://IP_DA_VPS:${WEB_PORT:-5173}/dashboard"
+echo "  3. Depois use http://IP_DA_VPS:${WEB_PORT:-9000}/dashboard"
 echo ""

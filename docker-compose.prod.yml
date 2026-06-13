@@ -75,11 +75,11 @@ services:
       DOCKER_ALLOW_ANY_CONTAINER: ${DOCKER_ALLOW_ANY_CONTAINER:-false}
       DOCKER_AGENT_URL: ${DOCKER_AGENT_URL:-http://docker-agent:8080}
       DOCKER_AGENT_KEY: ${DOCKER_AGENT_KEY:?DOCKER_AGENT_KEY is required}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:9000}
       VITE_COMMERCIAL_API_URL: ${VITE_COMMERCIAL_API_URL:-}
       CommercialAuth__ApiUrl: ${CommercialAuth__ApiUrl:-}
     ports:
-      - "${API_PORT:-9000}:8080"
+      - "${API_PORT:-9100}:8080"
     volumes:
       - dunckops-local-backups:/backups
     labels:
@@ -137,7 +137,7 @@ services:
       api:
         condition: service_healthy
     ports:
-      - "${WEB_PORT:-5173}:80"
+      - "${WEB_PORT:-9000}:80"
     labels:
       dunckops.managed: "true"
     restart: unless-stopped
