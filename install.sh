@@ -80,14 +80,41 @@ download_file() {
 }
 
 build_postgres_images() {
-    local source_base="${POSTGRES_IMAGE_SOURCE_BASE:-https://raw.githubusercontent.com/dunck01/projects-db-pitr/main/infra/docker/postgres}"
     local majors="${POSTGRES_IMAGE_MAJORS:-15 16 17}"
     local tmp_dir
 
     tmp_dir="$(mktemp -d)"
 
-    download_file "${source_base}/Dockerfile" "${tmp_dir}/Dockerfile"
-    download_file "${source_base}/wal-push-wrapper.sh" "${tmp_dir}/wal-push-wrapper.sh"
+    cat > "${tmp_dir}/Dockerfile" <<'EOF'
+ARG POSTGRES_MAJOR=17
+FROM postgres:${POSTGRES_MAJOR}-alpine
+
+RUN apk add --no-cache ca-certificates curl gcompat
+
+ARG WALG_VERSION=3.0.5
+RUN curl -fsSL -o /usr/local/bin/wal-g \
+    "https://github.com/wal-g/wal-g/releases/download/v${WALG_VERSION}/wal-g-pg-ubuntu-20.04-amd64" \
+    && chmod +x /usr/local/bin/wal-g \
+    && wal-g --version
+
+COPY wal-push-wrapper.sh /usr/local/bin/wal-push-wrapper.sh
+RUN chmod +x /usr/local/bin/wal-push-wrapper.sh
+
+RUN mkdir -p /var/lib/postgresql/wal_archive
+EOF
+
+    cat > "${tmp_dir}/wal-push-wrapper.sh" <<'EOF'
+#!/bin/sh
+set -e
+
+WAL_FILE="$1"
+
+if [ -n "$WALG_S3_PREFIX" ] || [ -n "$WALG_FILE_PREFIX" ]; then
+    wal-g wal-push "$WAL_FILE"
+else
+    test ! -f /var/lib/postgresql/wal_archive/$(basename "$WAL_FILE") && cp "$WAL_FILE" /var/lib/postgresql/wal_archive/
+fi
+EOF
 
     for major in $majors; do
         echo "  - Construindo dunckops-postgres:${major}-alpine..."
