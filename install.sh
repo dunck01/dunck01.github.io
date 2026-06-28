@@ -65,66 +65,24 @@ set_env_value() {
     fi
 }
 
-download_file() {
-    local url="$1"
-    local output="$2"
+build_postgres_images() {
+    local dockerfile="infra/docker/postgres/Dockerfile"
+    local context="infra/docker/postgres"
+    local majors="${POSTGRES_IMAGE_MAJORS:-15 16 17}"
 
-    if command -v curl &> /dev/null; then
-        curl -fsSL "$url" -o "$output"
-    elif command -v wget &> /dev/null; then
-        wget -q "$url" -O "$output"
-    else
-        echo "ERRO: curl ou wget nao esta instalado."
+    if [ ! -f "$dockerfile" ]; then
+        echo "ERRO: Dockerfile do PostgreSQL customizado nao encontrado em $dockerfile."
         exit 1
     fi
-}
-
-build_postgres_images() {
-    local majors="${POSTGRES_IMAGE_MAJORS:-15 16 17}"
-    local tmp_dir
-
-    tmp_dir="$(mktemp -d)"
-
-    cat > "${tmp_dir}/Dockerfile" <<'EOF'
-ARG POSTGRES_MAJOR=17
-FROM postgres:${POSTGRES_MAJOR}-alpine
-
-RUN apk add --no-cache ca-certificates curl gcompat
-
-ARG WALG_VERSION=3.0.5
-RUN curl -fsSL -o /usr/local/bin/wal-g \
-    "https://github.com/wal-g/wal-g/releases/download/v${WALG_VERSION}/wal-g-pg-ubuntu-20.04-amd64" \
-    && chmod +x /usr/local/bin/wal-g \
-    && wal-g --version
-
-COPY wal-push-wrapper.sh /usr/local/bin/wal-push-wrapper.sh
-RUN chmod +x /usr/local/bin/wal-push-wrapper.sh
-
-RUN mkdir -p /var/lib/postgresql/wal_archive
-EOF
-
-    cat > "${tmp_dir}/wal-push-wrapper.sh" <<'EOF'
-#!/bin/sh
-set -e
-
-WAL_FILE="$1"
-
-if [ -n "$WALG_S3_PREFIX" ] || [ -n "$WALG_FILE_PREFIX" ]; then
-    wal-g wal-push "$WAL_FILE"
-else
-    test ! -f /var/lib/postgresql/wal_archive/$(basename "$WAL_FILE") && cp "$WAL_FILE" /var/lib/postgresql/wal_archive/
-fi
-EOF
 
     for major in $majors; do
         echo "  - Construindo dunckops-postgres:${major}-alpine..."
         docker build \
             -t "dunckops-postgres:${major}-alpine" \
             --build-arg "POSTGRES_MAJOR=${major}" \
-            "$tmp_dir"
+            -f "$dockerfile" \
+            "$context"
     done
-
-    rm -rf "$tmp_dir"
 }
 
 if ! command -v docker &> /dev/null; then
@@ -151,13 +109,16 @@ if [ -z "${DUNCKOPS_LICENSE_KEY:-}" ] && [ -f .env ]; then
 fi
 
 if [ -z "${DUNCKOPS_LICENSE_KEY:-}" ]; then
-    printf 'Digite sua chave de licenca DunckOps (ou pressione Enter para configurar depois via Web UI):\n'
+    printf 'Digite sua chave de licenca DunckOps:\n'
+    printf '  (Obtenha sua chave em https://dunckops.com/dashboard)\n'
     if ! prompt_input "> " DUNCKOPS_LICENSE_KEY true; then
-        echo "Aviso: Nao foi possivel ler a chave de licenca, ela devera ser configurada na Web UI."
+        echo "ERRO: Nao foi possivel ler a chave de licenca."
+        exit 1
     fi
 
     if [ -z "$DUNCKOPS_LICENSE_KEY" ]; then
-        echo "Aviso: Chave de licenca nao fornecida. Configure depois em /setup ou na Web UI."
+        echo "ERRO: Chave de licenca e obrigatoria."
+        exit 1
     fi
 fi
 
@@ -176,12 +137,26 @@ ENV_EXAMPLE=".env.production.example"
 REMOTE_ENV_EXAMPLE="env.production.example"
 
 for filename in "$COMPOSE_FILE" "$DOCKER_OPS_FILE"; do
-    download_file "${BASE_URL}/${filename}" "$filename"
+    if command -v curl &> /dev/null; then
+        curl -fsSL "${BASE_URL}/${filename}" -o "$filename"
+    elif command -v wget &> /dev/null; then
+        wget -q "${BASE_URL}/${filename}" -O "$filename"
+    else
+        echo "ERRO: curl ou wget nao esta instalado."
+        exit 1
+    fi
 
     echo "  $filename (atualizado)"
 done
 
-download_file "${BASE_URL}/${REMOTE_ENV_EXAMPLE}" "$ENV_EXAMPLE"
+if command -v curl &> /dev/null; then
+    curl -fsSL "${BASE_URL}/${REMOTE_ENV_EXAMPLE}" -o "$ENV_EXAMPLE"
+elif command -v wget &> /dev/null; then
+    wget -q "${BASE_URL}/${REMOTE_ENV_EXAMPLE}" -O "$ENV_EXAMPLE"
+else
+    echo "ERRO: curl ou wget nao esta instalado."
+    exit 1
+fi
 
 echo "  $ENV_EXAMPLE (atualizado)"
 
@@ -235,21 +210,7 @@ if ! grep -q "^CORS_ORIGINS=" .env || grep -q "^CORS_ORIGINS=http://localhost:51
 fi
 
 echo ""
-echo "[4/5] Executando migracoes do .env..."
-if [ -f .env ]; then
-    if grep -q "commercial-api.dunckops.com" .env; then
-        echo "  - Atualizando URL da API Comercial antiga..."
-        sed -i 's|https://commercial-api.dunckops.com/api/v1|https://api.dunckops.com/api/v1|g' .env
-    fi
-    
-    if ! grep -q "^VITE_COMMERCIAL_API_URL=" .env; then
-        echo "  - Adicionando VITE_COMMERCIAL_API_URL..."
-        echo "VITE_COMMERCIAL_API_URL=/commercial-api" >> .env
-    fi
-fi
-
-echo ""
-echo "[5/5] Baixando imagens Docker..."
+echo "[4/5] Baixando imagens Docker..."
 
 COMPOSE_ARGS="-f $COMPOSE_FILE"
 
@@ -264,7 +225,7 @@ echo "Construindo imagens customizadas do PostgreSQL..."
 build_postgres_images
 
 echo ""
-echo "[6/6] Iniciando servicos..."
+echo "[5/5] Iniciando servicos..."
 
 if [ -f "$DOCKER_OPS_FILE" ]; then
     docker compose $COMPOSE_ARGS -f "$DOCKER_OPS_FILE" up -d
