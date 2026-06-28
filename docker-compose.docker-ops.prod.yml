@@ -21,8 +21,6 @@ services:
       BACKUP_RUNTIME_NETWORK: ${BACKUP_RUNTIME_NETWORK:-dunckops-platform_default}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-    ports:
-      - "${DOCKER_AGENT_HOST_PORT:-9011}:${DOCKER_AGENT_CONTAINER_PORT:-8080}"
     labels:
       dunckops.managed: "true"
     restart: unless-stopped

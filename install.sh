@@ -65,6 +65,31 @@ set_env_value() {
     fi
 }
 
+download_file() {
+    local remote_path="$1"
+    local output_path="$2"
+
+    mkdir -p "$(dirname "$output_path")"
+
+    if command -v curl &> /dev/null; then
+        curl -fsSL "${BASE_URL}/${remote_path}" -o "$output_path"
+    elif command -v wget &> /dev/null; then
+        wget -q "${BASE_URL}/${remote_path}" -O "$output_path"
+    else
+        echo "ERRO: curl ou wget nao esta instalado."
+        exit 1
+    fi
+}
+
+download_postgres_build_assets() {
+    download_file "infra/docker/postgres/Dockerfile" "infra/docker/postgres/Dockerfile"
+    echo "  infra/docker/postgres/Dockerfile (atualizado)"
+
+    download_file "infra/docker/postgres/wal-push-wrapper.sh" "infra/docker/postgres/wal-push-wrapper.sh"
+    chmod +x "infra/docker/postgres/wal-push-wrapper.sh"
+    echo "  infra/docker/postgres/wal-push-wrapper.sh (atualizado)"
+}
+
 build_postgres_images() {
     local dockerfile="infra/docker/postgres/Dockerfile"
     local context="infra/docker/postgres"
@@ -137,28 +162,14 @@ ENV_EXAMPLE=".env.production.example"
 REMOTE_ENV_EXAMPLE="env.production.example"
 
 for filename in "$COMPOSE_FILE" "$DOCKER_OPS_FILE"; do
-    if command -v curl &> /dev/null; then
-        curl -fsSL "${BASE_URL}/${filename}" -o "$filename"
-    elif command -v wget &> /dev/null; then
-        wget -q "${BASE_URL}/${filename}" -O "$filename"
-    else
-        echo "ERRO: curl ou wget nao esta instalado."
-        exit 1
-    fi
-
+    download_file "$filename" "$filename"
     echo "  $filename (atualizado)"
 done
 
-if command -v curl &> /dev/null; then
-    curl -fsSL "${BASE_URL}/${REMOTE_ENV_EXAMPLE}" -o "$ENV_EXAMPLE"
-elif command -v wget &> /dev/null; then
-    wget -q "${BASE_URL}/${REMOTE_ENV_EXAMPLE}" -O "$ENV_EXAMPLE"
-else
-    echo "ERRO: curl ou wget nao esta instalado."
-    exit 1
-fi
-
+download_file "$REMOTE_ENV_EXAMPLE" "$ENV_EXAMPLE"
 echo "  $ENV_EXAMPLE (atualizado)"
+
+download_postgres_build_assets
 
 echo ""
 echo "[3/5] Configurando variaveis de ambiente..."
