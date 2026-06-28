@@ -143,21 +143,9 @@ if [ -z "${DUNCKOPS_LICENSE_KEY:-}" ] && [ -f .env ]; then
     fi
 fi
 
-if [ -z "${DUNCKOPS_LICENSE_KEY:-}" ]; then
-    printf 'Digite sua chave de licenca DunckOps:\n'
-    printf '  (Obtenha sua chave em https://dunckops.com/dashboard)\n'
-    if ! prompt_input "> " DUNCKOPS_LICENSE_KEY true; then
-        echo "ERRO: Nao foi possivel ler a chave de licenca."
-        exit 1
-    fi
-
-    if [ -z "$DUNCKOPS_LICENSE_KEY" ]; then
-        echo "ERRO: Chave de licenca e obrigatoria."
-        exit 1
-    fi
+if [ -n "${DUNCKOPS_LICENSE_KEY:-}" ]; then
+    export DUNCKOPS_LICENSE_KEY
 fi
-
-export DUNCKOPS_LICENSE_KEY
 
 echo ""
 echo "[1/5] Preparando instalacao..."
@@ -211,7 +199,9 @@ if [ ! -f .env ]; then
     set_env_value "Encryption__MasterKey" "$enc_key"
     set_env_value "Jwt__Key" "$jwt_key"
     set_env_value "DOCKER_AGENT_KEY" "$agent_key"
-    set_env_value "DUNCKOPS_LICENSE_KEY" "$DUNCKOPS_LICENSE_KEY"
+    if [ -n "${DUNCKOPS_LICENSE_KEY:-}" ]; then
+        set_env_value "DUNCKOPS_LICENSE_KEY" "$DUNCKOPS_LICENSE_KEY"
+    fi
 
     echo ""
     echo ".env configurado. Verifique o arquivo antes de continuar."
@@ -279,6 +269,7 @@ echo "  Rollback : ./scripts/rollback.sh <versao>"
 echo ""
 echo "Proximos passos:"
 echo "  1. Acesse http://IP_DA_VPS:${WEB_PORT:-9000}/login"
-echo "  2. Entre com sua conta DunckOps"
+echo "  2. Entre com sua conta DunckOps e informe sua chave de licenca, se tiver uma"
+echo "     Sem chave, uma licenca gratuita sera configurada automaticamente"
 echo "  3. Depois use http://IP_DA_VPS:${WEB_PORT:-9000}/dashboard"
 echo ""

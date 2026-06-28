@@ -176,9 +176,9 @@
       <p class="eyebrow">DunckOps Self-Hosted</p>
       <h1>Instale sua stack DunckOps em uma VPS</h1>
       <p>
-        Este dominio distribui o instalador self-hosted oficial. Para usar, compre um
-        plano ou acesse sua conta em dunckops.com, copie sua license key e execute o
-        comando abaixo na VPS.
+        Este dominio distribui o instalador self-hosted oficial. Execute o comando
+        abaixo na VPS e configure a licenca no primeiro login. Se voce nao informar
+        uma chave, uma licenca gratuita sera configurada automaticamente.
       </p>
       <div class="actions" aria-label="Acoes principais">
         <a class="button" href="https://dunckops.com/">Ver planos no site oficial</a>
@@ -188,16 +188,16 @@
       <code>curl -fsSL https://get.dunckops.com/install.sh | sudo bash</code>
       <section class="steps" aria-label="Fluxo de instalacao">
         <div class="step">
-          <strong>1. Contrate ou entre</strong>
-          <span>Use o site oficial para contratar um plano ou acessar seu painel.</span>
-        </div>
-        <div class="step">
-          <strong>2. Copie a license key</strong>
-          <span>A chave fica no dashboard e sera solicitada durante a instalacao.</span>
-        </div>
-        <div class="step">
-          <strong>3. Rode na VPS</strong>
+          <strong>1. Rode na VPS</strong>
           <span>O instalador sobe Postgres, MinIO, API, worker, web e Docker Agent.</span>
+        </div>
+        <div class="step">
+          <strong>2. Entre na conta</strong>
+          <span>Use sua conta DunckOps no login da instancia self-hosted.</span>
+        </div>
+        <div class="step">
+          <strong>3. Configure a licenca</strong>
+          <span>Informe sua chave ou deixe em branco para ativar o plano gratuito.</span>
         </div>
       </section>
       <nav aria-label="Arquivos publicos">
@@ -207,7 +207,7 @@
         <a href="/env.production.example">env.production.example</a>
         <a href="https://dunckops.com/">dunckops.com</a>
       </nav>
-      <p class="note">Requisitos: Docker 24+, Docker Compose v2+ e uma license key ativa.</p>
+      <p class="note">Requisitos: Docker 24+, Docker Compose v2+ e uma conta DunckOps.</p>
     </main>
   </body>
 </html>
