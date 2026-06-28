@@ -90,6 +90,16 @@ download_postgres_build_assets() {
     echo "  infra/docker/postgres/wal-push-wrapper.sh (atualizado)"
 }
 
+download_support_scripts() {
+    download_file "scripts/update.sh" "scripts/update.sh"
+    chmod +x "scripts/update.sh"
+    echo "  scripts/update.sh (atualizado)"
+
+    download_file "scripts/rollback.sh" "scripts/rollback.sh"
+    chmod +x "scripts/rollback.sh"
+    echo "  scripts/rollback.sh (atualizado)"
+}
+
 build_postgres_images() {
     local dockerfile="infra/docker/postgres/Dockerfile"
     local context="infra/docker/postgres"
@@ -170,6 +180,7 @@ download_file "$REMOTE_ENV_EXAMPLE" "$ENV_EXAMPLE"
 echo "  $ENV_EXAMPLE (atualizado)"
 
 download_postgres_build_assets
+download_support_scripts
 
 echo ""
 echo "[3/5] Configurando variaveis de ambiente..."
