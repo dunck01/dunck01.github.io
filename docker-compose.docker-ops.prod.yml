@@ -7,7 +7,14 @@ services:
       DOCKER_AGENT_URL: "http://docker-agent:8080"
       DOCKER_AGENT_KEY: ${DOCKER_AGENT_KEY:?DOCKER_AGENT_KEY is required}
     depends_on:
-      - docker-agent
+      dunckops-db:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      minio-init:
+        condition: service_completed_successfully
+      docker-agent:
+        condition: service_started
 
   docker-agent:
     container_name: dunckops-docker-agent
