@@ -147,6 +147,18 @@ if [ -n "${DUNCKOPS_LICENSE_KEY:-}" ]; then
     export DUNCKOPS_LICENSE_KEY
 fi
 
+if [ -z "${LICENSE_PUBLIC_KEY:-}" ] && [ -f .env ]; then
+    existing_public_key="$(grep '^LICENSE_PUBLIC_KEY=' .env | cut -d'=' -f2-)"
+    if [ -n "$existing_public_key" ]; then
+        LICENSE_PUBLIC_KEY="$existing_public_key"
+        echo "License public key encontrada no .env existente."
+    fi
+fi
+
+if [ -n "${LICENSE_PUBLIC_KEY:-}" ]; then
+    export LICENSE_PUBLIC_KEY
+fi
+
 echo ""
 echo "[1/5] Preparando instalacao..."
 echo "Usando imagens publicas em ghcr.io/${REGISTRY_OWNER}."
@@ -201,6 +213,9 @@ if [ ! -f .env ]; then
     set_env_value "DOCKER_AGENT_KEY" "$agent_key"
     if [ -n "${DUNCKOPS_LICENSE_KEY:-}" ]; then
         set_env_value "DUNCKOPS_LICENSE_KEY" "$DUNCKOPS_LICENSE_KEY"
+    fi
+    if [ -n "${LICENSE_PUBLIC_KEY:-}" ]; then
+        set_env_value "LICENSE_PUBLIC_KEY" "$LICENSE_PUBLIC_KEY"
     fi
 
     echo ""
