@@ -136,7 +136,7 @@ if ! docker compose version &> /dev/null; then
 fi
 
 if [ -z "${DUNCKOPS_LICENSE_KEY:-}" ] && [ -f .env ]; then
-    existing_key="$(grep '^DUNCKOPS_LICENSE_KEY=' .env | cut -d'=' -f2-)"
+    existing_key="$(grep '^DUNCKOPS_LICENSE_KEY=' .env | cut -d'=' -f2- || true)"
     if [ -n "$existing_key" ]; then
         DUNCKOPS_LICENSE_KEY="$existing_key"
         echo "License key encontrada no .env existente."
@@ -148,7 +148,7 @@ if [ -n "${DUNCKOPS_LICENSE_KEY:-}" ]; then
 fi
 
 if [ -z "${LICENSE_PUBLIC_KEY:-}" ] && [ -f .env ]; then
-    existing_public_key="$(grep '^LICENSE_PUBLIC_KEY=' .env | cut -d'=' -f2-)"
+    existing_public_key="$(grep '^LICENSE_PUBLIC_KEY=' .env | cut -d'=' -f2- || true)"
     if [ -n "$existing_public_key" ]; then
         LICENSE_PUBLIC_KEY="$existing_public_key"
         echo "License public key encontrada no .env existente."
