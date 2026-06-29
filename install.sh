@@ -8,6 +8,7 @@ echo ""
 
 REGISTRY_OWNER="${REGISTRY_OWNER:-dunck01}"
 BASE_URL="${DUNCKOPS_BASE_URL:-https://get.dunckops.com}"
+DEFAULT_DB_PASSWORD="${DUNCKOPS_DEFAULT_DB_PASSWORD:-pitr-local}"
 
 prompt_input() {
     local prompt_text="$1"
@@ -195,7 +196,6 @@ if [ ! -f .env ]; then
     echo "Gerando secrets locais no arquivo .env:"
     echo ""
 
-    db_password="$(random_secret)"
     minio_access_key="dunckops$(random_secret | cut -c 1-16)"
     minio_secret_key="$(random_secret)"
     enc_key="$(random_secret)"
@@ -205,7 +205,7 @@ if [ ! -f .env ]; then
     echo ""
     echo "Aplicando valores no .env..."
 
-    set_env_value "DUNCKOPS_DB_PASSWORD" "$db_password"
+    set_env_value "DUNCKOPS_DB_PASSWORD" "$DEFAULT_DB_PASSWORD"
     set_env_value "LOCAL_MINIO_ACCESS_KEY" "$minio_access_key"
     set_env_value "LOCAL_MINIO_SECRET_KEY" "$minio_secret_key"
     set_env_value "Encryption__MasterKey" "$enc_key"
@@ -222,6 +222,10 @@ if [ ! -f .env ]; then
     echo ".env configurado. Verifique o arquivo antes de continuar."
 else
     echo "Arquivo .env ja existe, mantendo configuracao atual."
+fi
+
+if ! grep -q "^DUNCKOPS_DB_PASSWORD=" .env; then
+    set_env_value "DUNCKOPS_DB_PASSWORD" "$DEFAULT_DB_PASSWORD"
 fi
 
 if ! grep -q "^WEB_PORT=" .env || grep -q "^WEB_PORT=5173$" .env; then
