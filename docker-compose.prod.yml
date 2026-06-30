@@ -78,8 +78,10 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:9000}
       VITE_COMMERCIAL_API_URL: ${VITE_COMMERCIAL_API_URL:-}
       CommercialAuth__ApiUrl: ${CommercialAuth__ApiUrl:-}
+      CommercialAuth__PublicKeyUrl: ${CommercialAuth__PublicKeyUrl:-https://api.dunckops.com/license-public.pem}
+      Installation__Name: ${INSTALLATION_NAME:-}
       DUNCKOPS_LICENSE_KEY: ${DUNCKOPS_LICENSE_KEY:-}
-      LICENSE_PUBLIC_KEY: ${LICENSE_PUBLIC_KEY:?LICENSE_PUBLIC_KEY is required}
+      LICENSE_PUBLIC_KEY: ${LICENSE_PUBLIC_KEY:-}
       DOCKER_AGENT_EXTERNAL_HOST: ${DOCKER_AGENT_EXTERNAL_HOST:-}
     ports:
       - "${API_PORT:-9100}:8080"
@@ -122,8 +124,10 @@ services:
       LOCAL_MINIO_SECRET_KEY: ${LOCAL_MINIO_SECRET_KEY:?LOCAL_MINIO_SECRET_KEY is required}
       VITE_COMMERCIAL_API_URL: ${VITE_COMMERCIAL_API_URL:-}
       CommercialAuth__ApiUrl: ${CommercialAuth__ApiUrl:-}
+      CommercialAuth__PublicKeyUrl: ${CommercialAuth__PublicKeyUrl:-https://api.dunckops.com/license-public.pem}
+      Installation__Name: ${INSTALLATION_NAME:-}
       DUNCKOPS_LICENSE_KEY: ${DUNCKOPS_LICENSE_KEY:-}
-      LICENSE_PUBLIC_KEY: ${LICENSE_PUBLIC_KEY:?LICENSE_PUBLIC_KEY is required}
+      LICENSE_PUBLIC_KEY: ${LICENSE_PUBLIC_KEY:-}
       DOCKER_AGENT_EXTERNAL_HOST: ${DOCKER_AGENT_EXTERNAL_HOST:-}
     depends_on:
       dunckops-db:
