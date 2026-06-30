@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+PROJECT_DIR="$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)"
+
+cd "$PROJECT_DIR"
+
 echo "=== DunckOps Platform Update ==="
 echo ""
 
@@ -18,6 +23,14 @@ COMPOSE_ARGS="-f $COMPOSE_FILE"
 if [ -f "$DOCKER_OPS_FILE" ]; then
     COMPOSE_ARGS="$COMPOSE_ARGS -f $DOCKER_OPS_FILE"
 fi
+
+pull_managed_images() {
+    docker compose $COMPOSE_ARGS pull
+
+    if [ -f "$DOCKER_OPS_FILE" ]; then
+        docker compose $COMPOSE_ARGS --profile tools pull backup-runtime
+    fi
+}
 
 build_postgres_images() {
     local dockerfile="infra/docker/postgres/Dockerfile"
@@ -62,7 +75,7 @@ download_postgres_build_assets() {
 }
 
 echo "Pulling latest images..."
-docker compose $COMPOSE_ARGS pull
+pull_managed_images
 
 echo ""
 echo "Building custom PostgreSQL images..."

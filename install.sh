@@ -10,6 +10,7 @@ REGISTRY_OWNER="${REGISTRY_OWNER:-dunck01}"
 BASE_URL="${DUNCKOPS_BASE_URL:-https://get.dunckops.com}"
 COMMERCIAL_PUBLIC_KEY_URL="${DUNCKOPS_COMMERCIAL_PUBLIC_KEY_URL:-https://api.dunckops.com/license-public.pem}"
 DEFAULT_DB_PASSWORD="${DUNCKOPS_DEFAULT_DB_PASSWORD:-pitr-local}"
+INSTALL_DIR="${DUNCKOPS_INSTALL_DIR:-/opt/dunckops}"
 DEFAULT_INSTALLATION_NAME="${DUNCKOPS_INSTALLATION_NAME:-$(hostname 2> /dev/null || echo dunckops-vps)}"
 DEFAULT_LICENSE_PUBLIC_KEY='-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzgcIq8VPzkF8RSN2S4Lt\nFT+SKD10mKci8TrBOLx36LAx3kW+afo+rZKZMEoUDyFnMI9qZwmLXDuDFvvmcSq6\nv7wg7UgoB638FxMc9ByncnZP6I7JbjzwLDP04xFCgKlVbYfvDhUQQLhCfewGB1Ua\nYOslsF5BnPoFk0lK+MtONbflwDrsyY7re3chTPyIgHOtDicDFuroySON1seuMx8c\nuTAUOIreQRuBnUT4jck8fdZ45AsfB7u4cW5rU94jEAB/MEz2rXV6McSlBCt3ZgaO\nmLnmqGuPoTPUcT8BytEi6I1YrBccj9Gyu3xNRfJPjWM2STI/TW4qXGDaH402daNN\nEQIDAQAB\n-----END PUBLIC KEY-----'
 
@@ -145,6 +146,19 @@ build_postgres_images() {
     done
 }
 
+prepare_install_dir() {
+    mkdir -p "$INSTALL_DIR"
+    cd "$INSTALL_DIR"
+}
+
+pull_managed_images() {
+    docker compose $COMPOSE_ARGS pull
+
+    if [ -f "$DOCKER_OPS_FILE" ]; then
+        docker compose $COMPOSE_ARGS --profile tools pull backup-runtime
+    fi
+}
+
 if ! command -v docker &> /dev/null; then
     echo "Docker nao encontrado. Instalando..."
     echo ""
@@ -159,6 +173,8 @@ if ! docker compose version &> /dev/null; then
     echo "Instale manualmente: https://docs.docker.com/compose/install/"
     exit 1
 fi
+
+prepare_install_dir
 
 if [ -z "${DUNCKOPS_LICENSE_KEY:-}" ] && [ -f .env ]; then
     existing_key="$(grep '^DUNCKOPS_LICENSE_KEY=' .env | cut -d'=' -f2- || true)"
@@ -210,6 +226,7 @@ fi
 echo ""
 echo "[1/5] Preparando instalacao..."
 echo "Usando imagens publicas em ghcr.io/${REGISTRY_OWNER}."
+echo "Diretorio de instalacao: $INSTALL_DIR"
 
 echo ""
 echo "[2/5] Baixando arquivos de configuracao..."
@@ -305,12 +322,11 @@ echo ""
 echo "[4/5] Baixando imagens Docker..."
 
 COMPOSE_ARGS="-f $COMPOSE_FILE"
-
 if [ -f "$DOCKER_OPS_FILE" ]; then
-    docker compose $COMPOSE_ARGS -f "$DOCKER_OPS_FILE" pull
-else
-    docker compose $COMPOSE_ARGS pull
+    COMPOSE_ARGS="$COMPOSE_ARGS -f $DOCKER_OPS_FILE"
 fi
+
+pull_managed_images
 
 echo ""
 echo "Construindo imagens customizadas do PostgreSQL..."
@@ -319,11 +335,7 @@ build_postgres_images
 echo ""
 echo "[5/5] Iniciando servicos..."
 
-if [ -f "$DOCKER_OPS_FILE" ]; then
-    docker compose $COMPOSE_ARGS -f "$DOCKER_OPS_FILE" up -d
-else
-    docker compose $COMPOSE_ARGS up -d
-fi
+docker compose $COMPOSE_ARGS up -d
 
 echo ""
 echo ""
@@ -344,8 +356,8 @@ echo ""
 echo "Comandos uteis:"
 echo "  Status   : docker compose $COMPOSE_ARGS ps"
 echo "  Logs     : docker compose $COMPOSE_ARGS logs -f"
-echo "  Atualizar: ./scripts/update.sh"
-echo "  Rollback : ./scripts/rollback.sh <versao>"
+echo "  Atualizar: cd $INSTALL_DIR && ./scripts/update.sh"
+echo "  Rollback : cd $INSTALL_DIR && ./scripts/rollback.sh <versao>"
 echo ""
 echo "Proximos passos:"
 echo "  1. Acesse http://IP_DA_VPS:${WEB_PORT:-9000}/login"

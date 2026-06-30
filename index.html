@@ -189,7 +189,7 @@
       <section class="steps" aria-label="Fluxo de instalacao">
         <div class="step">
           <strong>1. Rode na VPS</strong>
-          <span>O instalador sobe Postgres, MinIO, API, worker, web e Docker Agent.</span>
+          <span>O instalador baixa tudo em <code>/opt/dunckops</code> e sobe Postgres, MinIO, API, worker, web e Docker Agent.</span>
         </div>
         <div class="step">
           <strong>2. Entre na conta</strong>
@@ -207,7 +207,7 @@
         <a href="/env.production.example">env.production.example</a>
         <a href="https://dunckops.com/">dunckops.com</a>
       </nav>
-      <p class="note">Requisitos: Docker 24+, Docker Compose v2+ e uma conta DunckOps.</p>
+      <p class="note">Requisitos: Docker 24+, Docker Compose v2+ e uma conta DunckOps. Atualizacao padrao: <code>cd /opt/dunckops && ./scripts/update.sh</code>.</p>
     </main>
   </body>
 </html>
