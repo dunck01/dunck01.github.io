@@ -9,6 +9,7 @@ echo ""
 REGISTRY_OWNER="${REGISTRY_OWNER:-dunck01}"
 BASE_URL="${DUNCKOPS_BASE_URL:-https://get.dunckops.com}"
 DEFAULT_DB_PASSWORD="${DUNCKOPS_DEFAULT_DB_PASSWORD:-pitr-local}"
+DEFAULT_LICENSE_PUBLIC_KEY='-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzgcIq8VPzkF8RSN2S4Lt\nFT+SKD10mKci8TrBOLx36LAx3kW+afo+rZKZMEoUDyFnMI9qZwmLXDuDFvvmcSq6\nv7wg7UgoB638FxMc9ByncnZP6I7JbjzwLDP04xFCgKlVbYfvDhUQQLhCfewGB1Ua\nYOslsF5BnPoFk0lK+MtONbflwDrsyY7re3chTPyIgHOtDicDFuroySON1seuMx8c\nuTAUOIreQRuBnUT4jck8fdZ45AsfB7u4cW5rU94jEAB/MEz2rXV6McSlBCt3ZgaO\nmLnmqGuPoTPUcT8BytEi6I1YrBccj9Gyu3xNRfJPjWM2STI/TW4qXGDaH402daNN\nEQIDAQAB\n-----END PUBLIC KEY-----'
 
 prompt_input() {
     local prompt_text="$1"
@@ -60,9 +61,10 @@ set_env_value() {
     local value="$2"
 
     if grep -q "^${key}=" .env; then
-        sed -i "s|^${key}=.*|${key}=${value}|" .env
+        sed -i "/^${key}=/d" .env
+        printf '%s=%s\n' "$key" "$value" >> .env
     else
-        echo "${key}=${value}" >> .env
+        printf '%s=%s\n' "$key" "$value" >> .env
     fi
 }
 
@@ -180,6 +182,10 @@ if [ -z "${LICENSE_PUBLIC_KEY:-}" ]; then
         LICENSE_PUBLIC_KEY="$downloaded_public_key"
         export LICENSE_PUBLIC_KEY
         echo "License public key baixada de ${BASE_URL}/license-public.pem."
+    elif [ -n "$DEFAULT_LICENSE_PUBLIC_KEY" ]; then
+        LICENSE_PUBLIC_KEY="$DEFAULT_LICENSE_PUBLIC_KEY"
+        export LICENSE_PUBLIC_KEY
+        echo "License public key padrao aplicada pelo instalador."
     fi
 fi
 
@@ -264,6 +270,10 @@ fi
 
 if ! grep -q "^DUNCKOPS_DB_PASSWORD=" .env; then
     set_env_value "DUNCKOPS_DB_PASSWORD" "$DEFAULT_DB_PASSWORD"
+fi
+
+if ! grep -q "^LICENSE_PUBLIC_KEY=." .env; then
+    set_env_value "LICENSE_PUBLIC_KEY" "$LICENSE_PUBLIC_KEY"
 fi
 
 if ! grep -q "^WEB_PORT=" .env || grep -q "^WEB_PORT=5173$" .env; then
