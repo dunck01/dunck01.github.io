@@ -8,7 +8,9 @@ echo ""
 
 REGISTRY_OWNER="${REGISTRY_OWNER:-dunck01}"
 BASE_URL="${DUNCKOPS_BASE_URL:-https://get.dunckops.com}"
+COMMERCIAL_PUBLIC_KEY_URL="${DUNCKOPS_COMMERCIAL_PUBLIC_KEY_URL:-https://api.dunckops.com/license-public.pem}"
 DEFAULT_DB_PASSWORD="${DUNCKOPS_DEFAULT_DB_PASSWORD:-pitr-local}"
+DEFAULT_INSTALLATION_NAME="${DUNCKOPS_INSTALLATION_NAME:-$(hostname 2> /dev/null || echo dunckops-vps)}"
 DEFAULT_LICENSE_PUBLIC_KEY='-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzgcIq8VPzkF8RSN2S4Lt\nFT+SKD10mKci8TrBOLx36LAx3kW+afo+rZKZMEoUDyFnMI9qZwmLXDuDFvvmcSq6\nv7wg7UgoB638FxMc9ByncnZP6I7JbjzwLDP04xFCgKlVbYfvDhUQQLhCfewGB1Ua\nYOslsF5BnPoFk0lK+MtONbflwDrsyY7re3chTPyIgHOtDicDFuroySON1seuMx8c\nuTAUOIreQRuBnUT4jck8fdZ45AsfB7u4cW5rU94jEAB/MEz2rXV6McSlBCt3ZgaO\nmLnmqGuPoTPUcT8BytEi6I1YrBccj9Gyu3xNRfJPjWM2STI/TW4qXGDaH402daNN\nEQIDAQAB\n-----END PUBLIC KEY-----'
 
 prompt_input() {
@@ -88,9 +90,15 @@ try_download_license_public_key() {
     local public_key=""
 
     if command -v curl &> /dev/null; then
-        public_key="$(curl -fsSL "${BASE_URL}/license-public.pem" 2> /dev/null || true)"
+        public_key="$(curl -fsSL "$COMMERCIAL_PUBLIC_KEY_URL" 2> /dev/null || true)"
+        if [ -z "$public_key" ]; then
+            public_key="$(curl -fsSL "${BASE_URL}/license-public.pem" 2> /dev/null || true)"
+        fi
     elif command -v wget &> /dev/null; then
-        public_key="$(wget -q "${BASE_URL}/license-public.pem" -O - 2> /dev/null || true)"
+        public_key="$(wget -q "$COMMERCIAL_PUBLIC_KEY_URL" -O - 2> /dev/null || true)"
+        if [ -z "$public_key" ]; then
+            public_key="$(wget -q "${BASE_URL}/license-public.pem" -O - 2> /dev/null || true)"
+        fi
     fi
 
     if printf '%s' "$public_key" | grep -q "BEGIN PUBLIC KEY"; then
@@ -176,32 +184,27 @@ if [ -n "${LICENSE_PUBLIC_KEY:-}" ]; then
     export LICENSE_PUBLIC_KEY
 fi
 
+if [ -z "${INSTALLATION_NAME:-}" ] && [ -f .env ]; then
+    existing_installation_name="$(grep '^INSTALLATION_NAME=' .env | cut -d'=' -f2- || true)"
+    if [ -n "$existing_installation_name" ]; then
+        INSTALLATION_NAME="$existing_installation_name"
+    fi
+fi
+
+INSTALLATION_NAME="${INSTALLATION_NAME:-$DEFAULT_INSTALLATION_NAME}"
+export INSTALLATION_NAME
+
 if [ -z "${LICENSE_PUBLIC_KEY:-}" ]; then
     downloaded_public_key="$(try_download_license_public_key)"
     if [ -n "$downloaded_public_key" ]; then
         LICENSE_PUBLIC_KEY="$downloaded_public_key"
         export LICENSE_PUBLIC_KEY
-        echo "License public key baixada de ${BASE_URL}/license-public.pem."
+        echo "License public key baixada automaticamente."
     elif [ -n "$DEFAULT_LICENSE_PUBLIC_KEY" ]; then
         LICENSE_PUBLIC_KEY="$DEFAULT_LICENSE_PUBLIC_KEY"
         export LICENSE_PUBLIC_KEY
         echo "License public key padrao aplicada pelo instalador."
     fi
-fi
-
-if [ -z "${LICENSE_PUBLIC_KEY:-}" ]; then
-    echo "ERRO: LICENSE_PUBLIC_KEY nao configurada."
-    echo ""
-    echo "Esta instalacao roda em modo production-like e precisa da chave publica"
-    echo "do servico comercial para validar os tokens de licenca."
-    echo ""
-    echo "Informe a chave publica PEM com quebras de linha escapadas (\\n):"
-    echo "  sudo LICENSE_PUBLIC_KEY='-----BEGIN PUBLIC KEY-----\\n...\\n-----END PUBLIC KEY-----' bash install.sh"
-    echo ""
-    echo "Ou publique a chave publica em ${BASE_URL}/license-public.pem."
-    echo ""
-    echo "Ou adicione LICENSE_PUBLIC_KEY no .env antes de executar o instalador novamente."
-    exit 1
 fi
 
 echo ""
@@ -261,6 +264,8 @@ if [ ! -f .env ]; then
     if [ -n "${LICENSE_PUBLIC_KEY:-}" ]; then
         set_env_value "LICENSE_PUBLIC_KEY" "$LICENSE_PUBLIC_KEY"
     fi
+    set_env_value "CommercialAuth__PublicKeyUrl" "$COMMERCIAL_PUBLIC_KEY_URL"
+    set_env_value "INSTALLATION_NAME" "$INSTALLATION_NAME"
 
     echo ""
     echo ".env configurado. Verifique o arquivo antes de continuar."
@@ -274,6 +279,14 @@ fi
 
 if ! grep -q "^LICENSE_PUBLIC_KEY=." .env; then
     set_env_value "LICENSE_PUBLIC_KEY" "$LICENSE_PUBLIC_KEY"
+fi
+
+if ! grep -q "^CommercialAuth__PublicKeyUrl=" .env; then
+    set_env_value "CommercialAuth__PublicKeyUrl" "$COMMERCIAL_PUBLIC_KEY_URL"
+fi
+
+if ! grep -q "^INSTALLATION_NAME=" .env; then
+    set_env_value "INSTALLATION_NAME" "$INSTALLATION_NAME"
 fi
 
 if ! grep -q "^WEB_PORT=" .env || grep -q "^WEB_PORT=5173$" .env; then
