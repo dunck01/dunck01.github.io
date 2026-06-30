@@ -82,6 +82,20 @@ download_file() {
     fi
 }
 
+try_download_license_public_key() {
+    local public_key=""
+
+    if command -v curl &> /dev/null; then
+        public_key="$(curl -fsSL "${BASE_URL}/license-public.pem" 2> /dev/null || true)"
+    elif command -v wget &> /dev/null; then
+        public_key="$(wget -q "${BASE_URL}/license-public.pem" -O - 2> /dev/null || true)"
+    fi
+
+    if printf '%s' "$public_key" | grep -q "BEGIN PUBLIC KEY"; then
+        printf '%s' "$public_key" | sed ':a;N;$!ba;s/\n/\\n/g'
+    fi
+}
+
 download_postgres_build_assets() {
     download_file "infra/docker/postgres/Dockerfile" "infra/docker/postgres/Dockerfile"
     echo "  infra/docker/postgres/Dockerfile (atualizado)"
@@ -158,6 +172,30 @@ fi
 
 if [ -n "${LICENSE_PUBLIC_KEY:-}" ]; then
     export LICENSE_PUBLIC_KEY
+fi
+
+if [ -z "${LICENSE_PUBLIC_KEY:-}" ]; then
+    downloaded_public_key="$(try_download_license_public_key)"
+    if [ -n "$downloaded_public_key" ]; then
+        LICENSE_PUBLIC_KEY="$downloaded_public_key"
+        export LICENSE_PUBLIC_KEY
+        echo "License public key baixada de ${BASE_URL}/license-public.pem."
+    fi
+fi
+
+if [ -z "${LICENSE_PUBLIC_KEY:-}" ]; then
+    echo "ERRO: LICENSE_PUBLIC_KEY nao configurada."
+    echo ""
+    echo "Esta instalacao roda em modo production-like e precisa da chave publica"
+    echo "do servico comercial para validar os tokens de licenca."
+    echo ""
+    echo "Informe a chave publica PEM com quebras de linha escapadas (\\n):"
+    echo "  sudo LICENSE_PUBLIC_KEY='-----BEGIN PUBLIC KEY-----\\n...\\n-----END PUBLIC KEY-----' bash install.sh"
+    echo ""
+    echo "Ou publique a chave publica em ${BASE_URL}/license-public.pem."
+    echo ""
+    echo "Ou adicione LICENSE_PUBLIC_KEY no .env antes de executar o instalador novamente."
+    exit 1
 fi
 
 echo ""
