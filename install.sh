@@ -8,6 +8,7 @@ echo ""
 
 REGISTRY_OWNER="${REGISTRY_OWNER:-dunck01}"
 BASE_URL="${DUNCKOPS_BASE_URL:-https://get.dunckops.com}"
+COMMERCIAL_PUBLIC_KEY_URL="${DUNCKOPS_COMMERCIAL_PUBLIC_KEY_URL:-https://api.dunckops.com/license-public.pem}"
 DEFAULT_DB_PASSWORD="${DUNCKOPS_DEFAULT_DB_PASSWORD:-pitr-local}"
 DEFAULT_LICENSE_PUBLIC_KEY='-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzgcIq8VPzkF8RSN2S4Lt\nFT+SKD10mKci8TrBOLx36LAx3kW+afo+rZKZMEoUDyFnMI9qZwmLXDuDFvvmcSq6\nv7wg7UgoB638FxMc9ByncnZP6I7JbjzwLDP04xFCgKlVbYfvDhUQQLhCfewGB1Ua\nYOslsF5BnPoFk0lK+MtONbflwDrsyY7re3chTPyIgHOtDicDFuroySON1seuMx8c\nuTAUOIreQRuBnUT4jck8fdZ45AsfB7u4cW5rU94jEAB/MEz2rXV6McSlBCt3ZgaO\nmLnmqGuPoTPUcT8BytEi6I1YrBccj9Gyu3xNRfJPjWM2STI/TW4qXGDaH402daNN\nEQIDAQAB\n-----END PUBLIC KEY-----'
 
@@ -88,9 +89,15 @@ try_download_license_public_key() {
     local public_key=""
 
     if command -v curl &> /dev/null; then
-        public_key="$(curl -fsSL "${BASE_URL}/license-public.pem" 2> /dev/null || true)"
+        public_key="$(curl -fsSL "$COMMERCIAL_PUBLIC_KEY_URL" 2> /dev/null || true)"
+        if [ -z "$public_key" ]; then
+            public_key="$(curl -fsSL "${BASE_URL}/license-public.pem" 2> /dev/null || true)"
+        fi
     elif command -v wget &> /dev/null; then
-        public_key="$(wget -q "${BASE_URL}/license-public.pem" -O - 2> /dev/null || true)"
+        public_key="$(wget -q "$COMMERCIAL_PUBLIC_KEY_URL" -O - 2> /dev/null || true)"
+        if [ -z "$public_key" ]; then
+            public_key="$(wget -q "${BASE_URL}/license-public.pem" -O - 2> /dev/null || true)"
+        fi
     fi
 
     if printf '%s' "$public_key" | grep -q "BEGIN PUBLIC KEY"; then
@@ -181,7 +188,7 @@ if [ -z "${LICENSE_PUBLIC_KEY:-}" ]; then
     if [ -n "$downloaded_public_key" ]; then
         LICENSE_PUBLIC_KEY="$downloaded_public_key"
         export LICENSE_PUBLIC_KEY
-        echo "License public key baixada de ${BASE_URL}/license-public.pem."
+        echo "License public key baixada automaticamente."
     elif [ -n "$DEFAULT_LICENSE_PUBLIC_KEY" ]; then
         LICENSE_PUBLIC_KEY="$DEFAULT_LICENSE_PUBLIC_KEY"
         export LICENSE_PUBLIC_KEY
