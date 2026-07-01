@@ -61,6 +61,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       ASPNETCORE_URLS: http://+:8080
+      DUNCKOPS_VERSION: ${DUNCKOPS_VERSION:-latest}
       ConnectionStrings__DefaultConnection: Host=dunckops-db;Port=5432;Database=${DUNCKOPS_DB_NAME:-pitr};Username=${DUNCKOPS_DB_USER:-pitr};Password=${DUNCKOPS_DB_PASSWORD:?DUNCKOPS_DB_PASSWORD is required}
       Encryption__MasterKey: ${Encryption__MasterKey:?Encryption__MasterKey is required}
       Jwt__Key: ${Jwt__Key:?Jwt__Key is required}
@@ -109,6 +110,7 @@ services:
     image: ghcr.io/${REGISTRY_OWNER:-dunck01}/dunckops-worker:${DUNCKOPS_VERSION:-latest}
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      DUNCKOPS_VERSION: ${DUNCKOPS_VERSION:-latest}
       ConnectionStrings__DefaultConnection: Host=dunckops-db;Port=5432;Database=${DUNCKOPS_DB_NAME:-pitr};Username=${DUNCKOPS_DB_USER:-pitr};Password=${DUNCKOPS_DB_PASSWORD:?DUNCKOPS_DB_PASSWORD is required}
       Encryption__MasterKey: ${Encryption__MasterKey:?Encryption__MasterKey is required}
       Jwt__Key: ${Jwt__Key:?Jwt__Key is required}
