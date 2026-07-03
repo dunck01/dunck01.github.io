@@ -29,7 +29,7 @@
         place-items: center;
         background:
           radial-gradient(circle at 20% 10%, rgba(56, 189, 248, 0.16), transparent 34rem),
-          radial-gradient(circle at 80% 20%, rgba(59, 130, 246, 0.16), transparent 28rem),
+          radial-gradient(circle at 80% 20%, rgba(44, 0, 250, 0.16), transparent 28rem),
           linear-gradient(135deg, #060914 0%, #0b1220 52%, #07111f 100%);
       }
 
@@ -93,10 +93,16 @@
         min-height: 44px;
         padding: 0 18px;
         border-radius: 999px;
-        background: linear-gradient(135deg, #38bdf8, #2563eb);
-        color: #020617;
+        background: linear-gradient(135deg, #22d3ee, #2C00FA);
+        color: #ffffff;
         font-weight: 800;
         text-decoration: none;
+        transition: 160ms ease;
+      }
+
+      .button:hover {
+        opacity: 0.9;
+        box-shadow: 0 0 20px rgba(44, 0, 250, 0.4);
       }
 
       .button.secondary {
@@ -150,8 +156,8 @@
       }
 
       a:hover {
-        border-color: rgba(56, 189, 248, 0.7);
-        color: #7dd3fc;
+        border-color: rgba(44, 0, 250, 0.7);
+        color: #8870ff;
       }
 
       .note {
