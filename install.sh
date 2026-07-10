@@ -159,12 +159,29 @@ pull_managed_images() {
     fi
 }
 
+package_manager_is_busy() {
+    local lock_file
+    local lock_files=(
+        /var/lib/dpkg/lock-frontend
+        /var/lib/dpkg/lock
+        /var/cache/apt/archives/lock
+    )
+
+    for lock_file in "${lock_files[@]}"; do
+        if [ -e "$lock_file" ] && fuser "$lock_file" >/dev/null 2>&1; then
+            return 0
+        fi
+    done
+
+    return 1
+}
+
 if ! command -v docker &> /dev/null; then
     echo "Docker nao encontrado. Instalando..."
     echo ""
-    
-    if command -v pgrep &> /dev/null; then
-        while pgrep -x apt >/dev/null || pgrep -x apt-get >/dev/null || pgrep -x dpkg >/dev/null || pgrep -f unattended-upgrades >/dev/null || pgrep -f unattended-upgr >/dev/null; do
+
+    if command -v fuser &> /dev/null; then
+        while package_manager_is_busy; do
             echo "Aguardando o sistema liberar o gerenciador de pacotes... (isso pode levar alguns minutos em uma VPS nova)"
             sleep 10
         done
