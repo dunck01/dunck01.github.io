@@ -162,6 +162,14 @@ pull_managed_images() {
 if ! command -v docker &> /dev/null; then
     echo "Docker nao encontrado. Instalando..."
     echo ""
+    
+    if command -v pgrep &> /dev/null; then
+        while pgrep -x apt >/dev/null || pgrep -x apt-get >/dev/null || pgrep -x dpkg >/dev/null || pgrep -f unattended-upgrades >/dev/null || pgrep -f unattended-upgr >/dev/null; do
+            echo "Aguardando o sistema liberar o gerenciador de pacotes... (isso pode levar alguns minutos em uma VPS nova)"
+            sleep 10
+        done
+    fi
+
     curl -fsSL https://get.docker.com | sh
     echo ""
     echo "Docker instalado com sucesso."
