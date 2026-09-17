@@ -26,6 +26,9 @@ services:
       POSTGRES_IMAGE_PREFIX: "${POSTGRES_IMAGE_PREFIX:-dunckops-postgres}"
       BACKUP_RUNTIME_IMAGE: ${BACKUP_RUNTIME_IMAGE:-ghcr.io/${REGISTRY_OWNER:-dunck01}/dunckops-backup-runtime:${DUNCKOPS_VERSION:-latest}}
       BACKUP_RUNTIME_NETWORK: ${BACKUP_RUNTIME_NETWORK:-dunckops-platform_default}
+      DUNCKOPS_LOCAL_BACKUP_VOLUME: ${DUNCKOPS_LOCAL_BACKUP_VOLUME:-dunckops-local-backups}
+      BACKUP_RUNTIME_TIMEOUT_MINUTES: ${BACKUP_RUNTIME_TIMEOUT_MINUTES:-720}
+      POSTGRES_CLONE_READY_TIMEOUT_MINUTES: ${POSTGRES_CLONE_READY_TIMEOUT_MINUTES:-120}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     labels:
