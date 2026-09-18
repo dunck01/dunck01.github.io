@@ -129,7 +129,7 @@ download_support_scripts() {
 build_postgres_images() {
     local dockerfile="infra/docker/postgres/Dockerfile"
     local context="infra/docker/postgres"
-    local majors="${POSTGRES_IMAGE_MAJORS:-15 16 17}"
+    local majors="${POSTGRES_IMAGE_MAJORS:-15 16 17 18}"
 
     if [ ! -f "$dockerfile" ]; then
         echo "ERRO: Dockerfile do PostgreSQL customizado nao encontrado em $dockerfile."
