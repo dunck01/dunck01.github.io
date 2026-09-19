@@ -269,7 +269,6 @@ done
 download_file "$REMOTE_ENV_EXAMPLE" "$ENV_EXAMPLE"
 echo "  $ENV_EXAMPLE (atualizado)"
 
-download_postgres_build_assets
 download_support_scripts
 
 echo ""
@@ -352,10 +351,6 @@ if [ -f "$DOCKER_OPS_FILE" ]; then
 fi
 
 pull_managed_images
-
-echo ""
-echo "Construindo imagens customizadas do PostgreSQL..."
-build_postgres_images
 
 echo ""
 echo "[5/5] Iniciando servicos..."
