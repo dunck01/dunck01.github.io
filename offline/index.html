@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>DunckOps Offline</title></head>
+<body>
+  <h1>Instalador offline DunckOps</h1>
+  <p>Baixe o bundle, copie-o para a VPS isolada e execute <code>sudo bash install-offline.sh</code>.</p>
+  <p><a id="download" href="latest.json">Carregando versao atual...</a></p>
+  <p><a href="README.md">Ver passo a passo de instalacao</a></p>
+  <script>
+    fetch('latest.json').then((response) => response.json()).then((release) => {
+      const link = document.getElementById('download');
+      link.href = release.url;
+      link.textContent = `Baixar DunckOps Offline v${release.version}`;
+    }).catch(() => { document.getElementById('download').textContent = 'Consulte latest.json para baixar o bundle.'; });
+  </script>
+</body>
+</html>
