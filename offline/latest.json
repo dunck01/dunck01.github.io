@@ -1,5 +1,6 @@
 {
-    "url":  "https://github.com/dunck01/projects-db-pitr/releases/download/v0.1.102/dunckops-offline-v0.1.102.tar.gz",
-    "version":  "0.1.102",
-    "sha256":  "511e04a8a81f6908d599e050ecbdf0b86ebdc16a1d3e5553dda71e5185152c3a"
+  "version": "0.1.102",
+  "storage": "r2",
+  "key": "releases/v0.1.102/dunckops-offline-v0.1.102.tar.gz",
+  "sha256": "511e04a8a81f6908d599e050ecbdf0b86ebdc16a1d3e5553dda71e5185152c3a"
 }

@@ -72,31 +72,28 @@
   <body>
     <main>
       <p class="eyebrow">VPS isolada da internet</p>
-      <h1>Baixe o bundle offline</h1>
+      <h1>DunckOps Offline Enterprise</h1>
       <p>
-        O arquivo <code>.tar.gz</code> fica na GitHub Release, não neste repositório.
-        Copie para a VPS e rode <code>sudo bash install-offline.sh</code>.
+        O pacote de distribuição offline para ambientes isolados (air-gapped) requer licença Enterprise ativa.
+        O download do bundle e disponibilizado via link assinado temporario atraves do Portal do Cliente.
       </p>
       <div class="actions">
-        <a class="button" id="download" href="https://github.com/dunck01/projects-db-pitr/releases/latest">Baixar bundle</a>
-        <a class="button secondary" href="/">Instalação com internet</a>
-        <a class="button secondary" href="README.md">Passo a passo</a>
+        <a class="button" id="download" href="https://dunckops.com">Acessar Portal do Cliente</a>
+        <a class="button secondary" href="/">Instalação padrão com internet</a>
+        <a class="button secondary" href="README.md">Documentação</a>
       </div>
-      <p class="meta" id="meta">Consultando a versão atual…</p>
+      <p class="meta" id="meta">Consultando versão mais recente…</p>
     </main>
     <script>
       fetch('latest.json')
         .then((response) => response.text())
         .then((text) => JSON.parse(text.replace(/^\uFEFF/, '')))
         .then((release) => {
-          const link = document.getElementById('download');
-          link.href = release.url;
-          link.textContent = 'Baixar DunckOps Offline v' + release.version;
-          const sha = release.sha256 ? ' SHA-256 ' + release.sha256.slice(0, 12) + '…' : '';
-          document.getElementById('meta').textContent = 'Arquivo dunckops-offline-v' + release.version + '.tar.gz.' + sha;
+          const sha = release.sha256 ? ' (SHA-256 ' + release.sha256.slice(0, 12) + '…)' : '';
+          document.getElementById('meta').textContent = 'Versão atual: v' + release.version + sha + '. Disponível para clientes com plano Enterprise.';
         })
         .catch(() => {
-          document.getElementById('meta').textContent = 'Não foi possível ler latest.json. Use a última GitHub Release.';
+          document.getElementById('meta').textContent = 'Informações de versão disponíveis no portal.';
         });
     </script>
   </body>
