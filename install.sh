@@ -124,6 +124,10 @@ download_support_scripts() {
     download_file "scripts/rollback.sh" "scripts/rollback.sh"
     chmod +x "scripts/rollback.sh"
     echo "  scripts/rollback.sh (atualizado)"
+
+    download_file "scripts/backup-before-update.sh" "scripts/backup-before-update.sh"
+    chmod +x "scripts/backup-before-update.sh"
+    echo "  scripts/backup-before-update.sh (atualizado)"
 }
 
 build_postgres_images() {

@@ -2,7 +2,11 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-PROJECT_DIR="$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)"
+if [ -f "$SCRIPT_DIR/../docker-compose.prod.yml" ]; then
+    PROJECT_DIR="$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)"
+else
+    PROJECT_DIR="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
+fi
 
 cd "$PROJECT_DIR"
 
@@ -35,7 +39,7 @@ pull_managed_images() {
 build_postgres_images() {
     local dockerfile="infra/docker/postgres/Dockerfile"
     local context="infra/docker/postgres"
-    local majors="${POSTGRES_IMAGE_MAJORS:-15 16 17}"
+    local majors="${POSTGRES_IMAGE_MAJORS:-15 16 17 18}"
 
     if [ ! -f "$dockerfile" ]; then
         echo "ERROR: custom PostgreSQL Dockerfile not found at $dockerfile."
@@ -74,17 +78,29 @@ download_postgres_build_assets() {
     chmod +x "infra/docker/postgres/wal-push-wrapper.sh"
 }
 
+echo "Creating pre-update backup..."
+"$SCRIPT_DIR/backup-before-update.sh"
+
+echo "Downloading current Compose files..."
+download_file "$COMPOSE_FILE" "$COMPOSE_FILE.new"
+download_file "$DOCKER_OPS_FILE" "$DOCKER_OPS_FILE.new"
+mv "$COMPOSE_FILE.new" "$COMPOSE_FILE"
+mv "$DOCKER_OPS_FILE.new" "$DOCKER_OPS_FILE"
+
 echo "Pulling latest images..."
 pull_managed_images
-
-echo ""
-echo "Building custom PostgreSQL images..."
-download_postgres_build_assets
-build_postgres_images
 
 echo "Restarting services..."
 docker compose $COMPOSE_ARGS down
 docker compose $COMPOSE_ARGS up -d
+
+download_file "scripts/update.sh" "scripts/update.sh.new"
+download_file "scripts/rollback.sh" "scripts/rollback.sh.new"
+download_file "scripts/backup-before-update.sh" "scripts/backup-before-update.sh.new"
+for script in update.sh rollback.sh backup-before-update.sh; do
+    mv "scripts/$script.new" "scripts/$script"
+    chmod +x "scripts/$script"
+done
 
 echo ""
 echo "=== Update Complete ==="

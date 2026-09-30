@@ -2,15 +2,19 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-PROJECT_DIR="$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)"
+if [ -f "$SCRIPT_DIR/../docker-compose.prod.yml" ]; then
+    PROJECT_DIR="$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)"
+else
+    PROJECT_DIR="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
+fi
 
 cd "$PROJECT_DIR"
 
 VERSION="${1:-}"
 
 if [ -z "$VERSION" ]; then
-    echo "Usage: ./scripts/rollback.sh <version>"
-    echo "Example: ./scripts/rollback.sh v1.0.0"
+    echo "Usage: ./rollback.sh <version>"
+    echo "Example: ./rollback.sh v1.0.0"
     exit 1
 fi
 
