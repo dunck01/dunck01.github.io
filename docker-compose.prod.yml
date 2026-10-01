@@ -80,7 +80,9 @@ services:
       VITE_COMMERCIAL_API_URL: ${VITE_COMMERCIAL_API_URL:-}
       CommercialAuth__ApiUrl: ${CommercialAuth__ApiUrl:-}
       CommercialAuth__PublicKeyUrl: ${CommercialAuth__PublicKeyUrl:-https://api.dunckops.com/license-public.pem}
-      Installation__Name: ${INSTALLATION_NAME:-}
+      Installation__Name: ${Installation__Name:-${INSTALLATION_NAME:-}}
+      Installation__Fingerprint: ${Installation__Fingerprint:-${INSTALLATION_FINGERPRINT:-}}
+      Setup__Token: ${Setup__Token:-${DUNCKOPS_SETUP_TOKEN:-}}
       DUNCKOPS_LICENSE_KEY: ${DUNCKOPS_LICENSE_KEY:-}
       LICENSE_PUBLIC_KEY: ${LICENSE_PUBLIC_KEY:-}
       DOCKER_AGENT_EXTERNAL_HOST: ${DOCKER_AGENT_EXTERNAL_HOST:-}
@@ -128,7 +130,8 @@ services:
       VITE_COMMERCIAL_API_URL: ${VITE_COMMERCIAL_API_URL:-}
       CommercialAuth__ApiUrl: ${CommercialAuth__ApiUrl:-}
       CommercialAuth__PublicKeyUrl: ${CommercialAuth__PublicKeyUrl:-https://api.dunckops.com/license-public.pem}
-      Installation__Name: ${INSTALLATION_NAME:-}
+      Installation__Name: ${Installation__Name:-${INSTALLATION_NAME:-}}
+      Installation__Fingerprint: ${Installation__Fingerprint:-${INSTALLATION_FINGERPRINT:-}}
       DUNCKOPS_LICENSE_KEY: ${DUNCKOPS_LICENSE_KEY:-}
       LICENSE_PUBLIC_KEY: ${LICENSE_PUBLIC_KEY:-}
       DOCKER_AGENT_EXTERNAL_HOST: ${DOCKER_AGENT_EXTERNAL_HOST:-}

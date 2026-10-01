@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
+set +x
 set -euo pipefail
+umask 077
 
 echo "=============================================="
 echo "  DunckOps Platform - Instalador de Producao"
@@ -55,7 +57,7 @@ random_secret() {
     if command -v openssl &> /dev/null; then
         openssl rand -hex 32
     else
-        tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 64
+        od -An -N32 -tx1 /dev/urandom | tr -d ' \n'
     fi
 }
 
@@ -63,12 +65,35 @@ set_env_value() {
     local key="$1"
     local value="$2"
 
+    if [[ "$key" == INSTALLATION_FINGERPRINT || "$key" == DUNCKOPS_SETUP_TOKEN ]]; then
+        value="${value//\\/\\\\}"
+        value="${value//\"/\\\"}"
+        value="${value//\$/\$\$}"
+        value="\"$value\""
+    fi
     if grep -q "^${key}=" .env; then
         sed -i "/^${key}=/d" .env
         printf '%s=%s\n' "$key" "$value" >> .env
     else
         printf '%s=%s\n' "$key" "$value" >> .env
     fi
+}
+
+# Read only data, never source an operator-provided .env as shell code.
+read_env_value() {
+    local value
+    value="$(sed -n "s/^${1}=//p" .env | tail -n 1)"
+    value="${value%$'\r'}"
+    if [[ "$value" == \'*\' ]]; then
+        value="${value:1:${#value}-2}"
+        value="${value//\\\'/\'}"
+    elif [[ "$value" == \"*\" ]]; then
+        value="${value:1:${#value}-2}"
+        value="${value//\$\$/\$}"
+        value="${value//\\\"/\"}"
+        value="${value//\\\\/\\}"
+    fi
+    printf '%s' "$value"
 }
 
 download_file() {
@@ -318,6 +343,31 @@ else
     echo "Arquivo .env ja existe, mantendo configuracao atual."
 fi
 
+chmod 600 .env
+
+# Persisted identity wins over process environment on reinstall.
+fingerprint="$(read_env_value Installation__Fingerprint)"
+fingerprint="${fingerprint:-$(read_env_value INSTALLATION_FINGERPRINT)}"
+fingerprint="${fingerprint:-${Installation__Fingerprint:-${INSTALLATION_FINGERPRINT:-}}}"
+fingerprint="${fingerprint:-$(random_secret)}"
+setup_token="$(read_env_value Setup__Token)"
+setup_token="${setup_token:-$(read_env_value DUNCKOPS_SETUP_TOKEN)}"
+setup_token="${setup_token:-${Setup__Token:-${DUNCKOPS_SETUP_TOKEN:-}}}"
+if [[ ${#fingerprint} -gt 200 || -z "${fingerprint//[[:space:]]/}" || "$fingerprint" == *[$'\r\n']* ]]; then
+    echo "ERRO: fingerprint deve ter 1-200 caracteres, sem quebras de linha."
+    exit 1
+fi
+if [[ -n "$setup_token" && ( ${#setup_token} -lt 32 || -z "${setup_token//[[:space:]]/}" || "$setup_token" == "$fingerprint" || "$setup_token" == *[$'\r\n']* ) ]]; then
+    echo "ERRO: token de setup deve ter pelo menos 32 caracteres, ser distinto do fingerprint e seguro para .env."
+    exit 1
+fi
+set_env_value "INSTALLATION_FINGERPRINT" "$fingerprint"
+if [ -n "$setup_token" ]; then
+    set_env_value "DUNCKOPS_SETUP_TOKEN" "$setup_token"
+fi
+export INSTALLATION_FINGERPRINT="$fingerprint" Installation__Fingerprint="$fingerprint"
+export DUNCKOPS_SETUP_TOKEN="$setup_token" Setup__Token="$setup_token"
+
 if ! grep -q "^DUNCKOPS_DB_PASSWORD=" .env; then
     set_env_value "DUNCKOPS_DB_PASSWORD" "$DEFAULT_DB_PASSWORD"
 fi
@@ -385,7 +435,7 @@ echo "  Rollback : cd $INSTALL_DIR && ./scripts/rollback.sh <versao>"
 echo ""
 echo "Proximos passos:"
 echo "  1. Acesse http://IP_DA_VPS:${WEB_PORT:-9000}/login"
-echo "  2. Entre com sua conta DunckOps e informe sua chave de licenca, se tiver uma"
-echo "     Sem chave, uma licenca gratuita sera configurada automaticamente"
+echo "  2. Primeiro acesso: entre com Owner da empresa na conta DunckOps comercial"
+echo "     Informe sua chave de licenca, se tiver uma; sem chave, o fluxo comercial configura licenca gratuita"
 echo "  3. Depois use http://IP_DA_VPS:${WEB_PORT:-9000}/dashboard"
 echo ""
