@@ -1,218 +1,32 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="en" data-language-redirect>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>DunckOps Self-Hosted Installer</title>
-    <meta
-      name="description"
-      content="Instalador publico do DunckOps Platform para ambientes self-hosted."
-    />
-    <style>
-      :root {
-        color-scheme: dark;
-        font-family:
-          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-          "Segoe UI", sans-serif;
-        background: #060914;
-        color: #e5edf8;
-      }
-
-      * {
-        box-sizing: border-box;
-      }
-
-      body {
-        min-height: 100vh;
-        margin: 0;
-        display: grid;
-        place-items: center;
-        background:
-          radial-gradient(circle at 20% 10%, rgba(56, 189, 248, 0.16), transparent 34rem),
-          radial-gradient(circle at 80% 20%, rgba(44, 0, 250, 0.16), transparent 28rem),
-          linear-gradient(135deg, #060914 0%, #0b1220 52%, #07111f 100%);
-      }
-
-      main {
-        width: min(980px, calc(100vw - 32px));
-        padding: 44px;
-        border: 1px solid rgba(148, 163, 184, 0.22);
-        border-radius: 28px;
-        background: rgba(15, 23, 42, 0.78);
-        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.34);
-      }
-
-      .eyebrow {
-        margin: 0 0 16px;
-        color: #38bdf8;
-        font-size: 0.82rem;
-        font-weight: 700;
-        letter-spacing: 0.14em;
-        text-transform: uppercase;
-      }
-
-      h1 {
-        margin: 0;
-        font-size: clamp(2.3rem, 6vw, 4.8rem);
-        line-height: 0.94;
-        letter-spacing: -0.06em;
-      }
-
-      p {
-        max-width: 680px;
-        margin: 22px 0 0;
-        color: #a9b8cb;
-        font-size: 1.08rem;
-        line-height: 1.7;
-      }
-
-      code {
-        display: block;
-        margin-top: 30px;
-        padding: 18px 20px;
-        overflow-x: auto;
-        border: 1px solid rgba(56, 189, 248, 0.24);
-        border-radius: 18px;
-        background: #020617;
-        color: #bae6fd;
-        font: 600 0.98rem/1.7 "SFMono-Regular", Consolas, monospace;
-        white-space: nowrap;
-      }
-
-      .actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 12px;
-        margin-top: 28px;
-      }
-
-      .button {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 44px;
-        padding: 0 18px;
-        border-radius: 999px;
-        background: linear-gradient(135deg, #22d3ee, #2C00FA);
-        color: #ffffff;
-        font-weight: 800;
-        text-decoration: none;
-        transition: 160ms ease;
-      }
-
-      .button:hover {
-        opacity: 0.9;
-        box-shadow: 0 0 20px rgba(44, 0, 250, 0.4);
-      }
-
-      .button.secondary {
-        border: 1px solid rgba(148, 163, 184, 0.28);
-        background: rgba(15, 23, 42, 0.86);
-        color: #dbeafe;
-      }
-
-      nav {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 12px;
-        margin-top: 28px;
-      }
-
-      .steps {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 14px;
-        margin-top: 28px;
-      }
-
-      .step {
-        padding: 16px;
-        border: 1px solid rgba(148, 163, 184, 0.18);
-        border-radius: 18px;
-        background: rgba(2, 6, 23, 0.38);
-      }
-
-      .step strong {
-        display: block;
-        color: #f8fafc;
-        font-size: 0.96rem;
-      }
-
-      .step span {
-        display: block;
-        margin-top: 8px;
-        color: #8fa3ba;
-        font-size: 0.9rem;
-        line-height: 1.55;
-      }
-
-      a {
-        padding: 10px 14px;
-        border: 1px solid rgba(148, 163, 184, 0.22);
-        border-radius: 999px;
-        color: #dbeafe;
-        text-decoration: none;
-        transition: 160ms ease;
-      }
-
-      a:hover {
-        border-color: rgba(44, 0, 250, 0.7);
-        color: #8870ff;
-      }
-
-      .note {
-        margin-top: 28px;
-        color: #64748b;
-        font-size: 0.92rem;
-      }
-
-      @media (max-width: 760px) {
-        main {
-          padding: 28px;
-        }
-
-        .steps {
-          grid-template-columns: 1fr;
-        }
-      }
-    </style>
+    <title>DunckOps Self-Hosted Installer | Choose Your Language</title>
+    <meta name="description" content="Install DunckOps on your own VPS. Choose English or Brazilian Portuguese for the official self-hosted installation guide." />
+    <meta property="og:title" content="DunckOps Self-Hosted Installer | Choose Your Language" />
+    <meta property="og:description" content="Install DunckOps on your own VPS. Choose English or Brazilian Portuguese for the official self-hosted installation guide." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://get.dunckops.com/" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale:alternate" content="pt_BR" />
+    <link rel="canonical" href="https://get.dunckops.com/" />
+    <link rel="alternate" hreflang="en" href="https://get.dunckops.com/en/" />
+    <link rel="alternate" hreflang="pt-BR" href="https://get.dunckops.com/pt-br/" />
+    <link rel="alternate" hreflang="x-default" href="https://get.dunckops.com/" />
+    <link rel="stylesheet" href="/assets/site.css" />
+    <script src="/assets/language.js" defer></script>
   </head>
   <body>
     <main>
       <p class="eyebrow">DunckOps Self-Hosted</p>
-      <h1>Instale sua stack DunckOps em uma VPS</h1>
-      <p>
-        Este dominio distribui o instalador self-hosted oficial. Execute o comando
-        abaixo na VPS e configure a licenca no primeiro login. Se voce nao informar
-        uma chave, uma licenca gratuita sera configurada automaticamente.
-      </p>
-      <div class="actions" aria-label="Acoes principais">
-        <a class="button" href="https://dunckops.com/">Ver planos no site oficial</a>
-        <a class="button secondary" href="https://dunckops.com/login">Entrar</a>
-      </div>
-      <code>curl -fsSL https://get.dunckops.com/install.sh | sudo bash</code>
-      <section class="steps" aria-label="Fluxo de instalacao">
-        <div class="step">
-          <strong>1. Rode na VPS</strong>
-          <span>O instalador baixa tudo em <code>/opt/dunckops</code> e sobe Postgres, MinIO, API, worker, web e Docker Agent.</span>
-        </div>
-        <div class="step">
-          <strong>2. Entre na conta</strong>
-          <span>Use sua conta DunckOps no login da instancia self-hosted.</span>
-        </div>
-        <div class="step">
-          <strong>3. Configure a licenca</strong>
-          <span>Informe sua chave ou deixe em branco para ativar o plano gratuito.</span>
-        </div>
-      </section>
-      <nav aria-label="Arquivos publicos">
-        <a href="/install.sh">install.sh</a>
-        <a href="/docker-compose.prod.yml">docker-compose.prod.yml</a>
-        <a href="/docker-compose.docker-ops.prod.yml">docker-ops override</a>
-        <a href="/env.production.example">env.production.example</a>
-        <a href="https://dunckops.com/">dunckops.com</a>
+      <h1>Choose your language</h1>
+      <p lang="pt-BR">Escolha seu idioma</p>
+      <nav aria-label="Language / Idioma">
+        <a href="/en/" data-language="en" lang="en" hreflang="en">English</a>
+        <a href="/pt-br/" data-language="pt-BR" lang="pt-BR" hreflang="pt-BR">Portugu&#234;s (Brasil)</a>
       </nav>
-      <p class="note">Requisitos: Docker 24+, Docker Compose v2+ e uma conta DunckOps. Atualizacao padrao: <code>cd /opt/dunckops && ./scripts/update.sh</code>.</p>
     </main>
   </body>
 </html>

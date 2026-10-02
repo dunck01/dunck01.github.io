@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DunckOps Self-Hosted Installer | Install on Your VPS</title>
+    <meta name="description" content="Install the DunckOps Platform on your own VPS with the official self-hosted installer. Sign in and activate your license or start with the free plan." />
+    <meta property="og:title" content="DunckOps Self-Hosted Installer | Install on Your VPS" />
+    <meta property="og:description" content="Install the DunckOps Platform on your own VPS with the official self-hosted installer. Sign in and activate your license or start with the free plan." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://get.dunckops.com/en/" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale:alternate" content="pt_BR" />
+    <link rel="canonical" href="https://get.dunckops.com/en/" />
+    <link rel="alternate" hreflang="en" href="https://get.dunckops.com/en/" />
+    <link rel="alternate" hreflang="pt-BR" href="https://get.dunckops.com/pt-br/" />
+    <link rel="alternate" hreflang="x-default" href="https://get.dunckops.com/" />
+    <link rel="stylesheet" href="/assets/site.css" />
+    <script src="/assets/language.js" defer></script>
+  </head>
+  <body>
+    <main>
+      <nav class="languages" aria-label="Language">
+        <a href="/en/" data-language="en" lang="en" hreflang="en" aria-current="page">English</a>
+        <a href="/pt-br/" data-language="pt-BR" lang="pt-BR" hreflang="pt-BR">Portugu&#234;s (Brasil)</a>
+      </nav>
+      <p class="eyebrow">DunckOps Self-Hosted</p>
+      <h1>Install your DunckOps stack on a VPS</h1>
+      <p>
+        This domain distributes the official self-hosted installer. Run the command
+        below on your VPS and configure your license when you first sign in. If you
+        do not provide a key, a free license will be configured automatically.
+      </p>
+      <div class="actions" aria-label="Main actions">
+        <a class="button" href="https://dunckops.com/en">View plans on the official website</a>
+        <a class="button secondary" href="https://dunckops.com/en/login">Sign in</a>
+      </div>
+      <code>curl -fsSL https://get.dunckops.com/install.sh | sudo bash</code>
+      <section class="steps" aria-label="Installation steps">
+        <div class="step">
+          <strong>1. Run on your VPS</strong>
+          <span>The installer downloads everything to <code>/opt/dunckops</code> and starts Postgres, MinIO, API, worker, web, and Docker Agent.</span>
+        </div>
+        <div class="step">
+          <strong>2. Sign in to your account</strong>
+          <span>Use your DunckOps account to sign in to the self-hosted instance.</span>
+        </div>
+        <div class="step">
+          <strong>3. Configure your license</strong>
+          <span>Enter your key or leave it blank to activate the free plan.</span>
+        </div>
+      </section>
+      <nav aria-label="Public files">
+        <a href="/install.sh">install.sh</a>
+        <a href="/docker-compose.prod.yml">docker-compose.prod.yml</a>
+        <a href="/docker-compose.docker-ops.prod.yml">Docker Ops override</a>
+        <a href="/env.production.example">env.production.example</a>
+        <a href="https://dunckops.com/en">dunckops.com</a>
+      </nav>
+      <p class="note">Requirements: Docker 24+, Docker Compose v2+, and a DunckOps account. Default update command: <code>cd /opt/dunckops &amp;&amp; ./scripts/update.sh</code>.</p>
+    </main>
+  </body>
+</html>
