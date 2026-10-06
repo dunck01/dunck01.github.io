@@ -35,7 +35,8 @@
         <a class="button" href="https://dunckops.com/en">View plans on the official website</a>
         <a class="button secondary" href="https://dunckops.com/en/login">Sign in</a>
       </div>
-      <code>curl -fsSL https://get.dunckops.com/install.sh | sudo bash</code>
+      <p>Set <code>DUNCKOPS_VERSION</code> to an actual published X.Y.Z release from the official catalog, without v. Never use latest or an invented version.</p>
+      <code>curl -fsSL https://get.dunckops.com/install.sh | sudo env DUNCKOPS_VERSION="${DUNCKOPS_VERSION:?Select a published release}" bash</code>
       <section class="steps" aria-label="Installation steps">
         <div class="step">
           <strong>1. Run on your VPS</strong>
@@ -49,6 +50,11 @@
           <strong>3. Configure your license</strong>
           <span>Enter your key or leave it blank to activate the free plan.</span>
         </div>
+      </section>
+      <section aria-labelledby="database-engines">
+        <h2 id="database-engines">Database engines</h2>
+        <p>PostgreSQL remains the available operational engine. MySQL, MariaDB, MongoDB, and Microsoft SQL Server are on the implementation roadmap; backup, PITR, and delayed replicas are not available for these engines in this version.</p>
+        <p>All plans authorize the same engines; limits and features vary by plan. The database limit counts the combined total across engines. This authorization does not enable features that have not been implemented. The installer remains unchanged at this stage.</p>
       </section>
       <nav aria-label="Public files">
         <a href="/install.sh">install.sh</a>

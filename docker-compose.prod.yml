@@ -1,4 +1,5 @@
 name: dunckops-platform
+x-release: ${DUNCKOPS_VERSION:?Set DUNCKOPS_VERSION to an actual published X.Y.Z release; never latest}
 
 services:
   dunckops-db:
@@ -57,7 +58,7 @@ services:
 
   api:
     container_name: dunckops-api
-    image: ghcr.io/${REGISTRY_OWNER:-dunck01}/dunckops-api:${DUNCKOPS_VERSION:-latest}
+    image: ghcr.io/${REGISTRY_OWNER:-dunck01}/dunckops-api:${DUNCKOPS_VERSION}
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       ASPNETCORE_URLS: http://+:8080
@@ -76,6 +77,12 @@ services:
       DOCKER_AGENT_URL: ${DOCKER_AGENT_URL:-http://docker-agent:8080}
       DOCKER_AGENT_KEY: ${DOCKER_AGENT_KEY:?DOCKER_AGENT_KEY is required}
       DOCKER_AGENT_TIMEOUT_MINUTES: ${DOCKER_AGENT_TIMEOUT_MINUTES:-720}
+      PHYSICAL_SNAPSHOTS_ENABLED: ${PHYSICAL_SNAPSHOTS_ENABLED:-false}
+      PHYSICAL_SNAPSHOT_TIMEOUT_MINUTES: ${PHYSICAL_SNAPSHOT_TIMEOUT_MINUTES:-60}
+      MULTI_ENGINE_OPERATIONS_ENABLED: ${MULTI_ENGINE_OPERATIONS_ENABLED:-false}
+      ENGINE_PROVISIONING_API_SHARED_NETWORK: ${ENGINE_PROVISIONING_API_SHARED_NETWORK:-true}
+      SQLSERVER_OPERATIONS_UNVERIFIED_OPT_IN: ${SQLSERVER_OPERATIONS_UNVERIFIED_OPT_IN:-false}
+      SQLSERVER_OPERATIONS_TIMEOUT_SECONDS: ${SQLSERVER_OPERATIONS_TIMEOUT_SECONDS:-1800}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:9000}
       VITE_COMMERCIAL_API_URL: ${VITE_COMMERCIAL_API_URL:-}
       CommercialAuth__ApiUrl: ${CommercialAuth__ApiUrl:-}
@@ -110,7 +117,7 @@ services:
 
   worker:
     container_name: dunckops-worker
-    image: ghcr.io/${REGISTRY_OWNER:-dunck01}/dunckops-worker:${DUNCKOPS_VERSION:-latest}
+    image: ghcr.io/${REGISTRY_OWNER:-dunck01}/dunckops-worker:${DUNCKOPS_VERSION}
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       ConnectionStrings__DefaultConnection: Host=dunckops-db;Port=5432;Database=${DUNCKOPS_DB_NAME:-pitr};Username=${DUNCKOPS_DB_USER:-pitr};Password=${DUNCKOPS_DB_PASSWORD:?DUNCKOPS_DB_PASSWORD is required}
@@ -136,6 +143,7 @@ services:
       LICENSE_PUBLIC_KEY: ${LICENSE_PUBLIC_KEY:-}
       DOCKER_AGENT_EXTERNAL_HOST: ${DOCKER_AGENT_EXTERNAL_HOST:-}
       MONITORING_EVENTS_API_URL: ${MONITORING_EVENTS_API_URL:-http://api:8080}
+      ENGINE_PROVISIONING_API_SHARED_NETWORK: ${ENGINE_PROVISIONING_API_SHARED_NETWORK:-true}
       MONITORING_EVENTS_SHARED_SECRET: ${MONITORING_EVENTS_SHARED_SECRET:-${Jwt__Key:?Jwt__Key is required}}
     depends_on:
       dunckops-db:
@@ -150,7 +158,7 @@ services:
 
   web:
     container_name: dunckops-web
-    image: ghcr.io/${REGISTRY_OWNER:-dunck01}/dunckops-web:${DUNCKOPS_VERSION:-latest}
+    image: ghcr.io/${REGISTRY_OWNER:-dunck01}/dunckops-web:${DUNCKOPS_VERSION}
     depends_on:
       api:
         condition: service_healthy

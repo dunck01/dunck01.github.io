@@ -181,7 +181,134 @@ prepare_install_dir() {
 }
 
 pull_managed_images() {
-    docker compose $COMPOSE_ARGS pull
+    local config timeout runtime_overrides snapshot_overrides engine image key value multi sql restore_pull service override_key
+    config="$(docker compose $COMPOSE_ARGS config --format json)"
+    local release_version
+    release_version="$(docker compose $COMPOSE_ARGS config --environment | sed -n 's/^DUNCKOPS_VERSION=//p')"
+    if [[ ! "$release_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        echo "ERRO: DUNCKOPS_VERSION exige release X.Y.Z publicada; nunca latest. Nenhum pull ou startup executado."
+        return 1
+    fi
+    for key in PHYSICAL_SNAPSHOTS_ENABLED MULTI_ENGINE_OPERATIONS_ENABLED SQLSERVER_OPERATIONS_UNVERIFIED_OPT_IN; do
+        value="$(printf '%s\n' "$config" | sed -n "s/.*\"$key\": \"\([^\"]*\)\".*/\1/p" | sort -u)"
+        if [[ "$value" != true && "$value" != false ]]; then
+            echo "ERRO: $key deve ser true ou false, igual na API e agent."
+            return 1
+        fi
+        case "$key" in
+            MULTI_ENGINE_OPERATIONS_ENABLED) multi="$value" ;;
+            SQLSERVER_OPERATIONS_UNVERIFIED_OPT_IN) sql="$value" ;;
+        esac
+    done
+    timeout="$(printf '%s\n' "$config" | sed -n 's/.*"SQLSERVER_OPERATIONS_TIMEOUT_SECONDS": "\([^"]*\)".*/\1/p' | sort -u)"
+    if [[ ! "$timeout" =~ ^[1-9][0-9]{1,3}$ ]] || (( timeout < 60 || timeout > 7200 )); then
+        echo "ERRO: SQLSERVER_OPERATIONS_TIMEOUT_SECONDS deve ser inteiro 60..7200, igual na API e agent."
+        return 1
+    fi
+    image="$(printf '%s\n' "$config" | sed -n 's/.*"SQLSERVER_OPERATIONS_RUNTIME_IMAGE": "\([^"]*\)".*/\1/p' | sort -u)"
+    if [ -n "$image" ] && [[ ! "$image" =~ ^sha256:[a-f0-9]{64}$ ]]; then
+        echo "ERRO: SQLSERVER_OPERATIONS_RUNTIME_IMAGE aceita somente ID sha256 imutavel aprovado manualmente, nunca tag."
+        return 1
+    fi
+    runtime_overrides="$(docker compose $COMPOSE_ARGS config --environment | sed -n '/^MULTI_ENGINE_RESTORE_SERVER_IMAGES_PULL=/p; /^MYSQL_OPERATIONS_RUNTIME_IMAGE=/p; /^MARIADB_OPERATIONS_RUNTIME_IMAGE=/p; /^MONGO_OPERATIONS_RUNTIME_IMAGE=/p; /^SQLSERVER_OPERATIONS_CLIENT_TOOLS_IMAGE=/p; /^MYSQL_RESTORE_SERVER_IMAGE=/p; /^MARIADB_RESTORE_SERVER_IMAGE=/p')"
+    restore_pull="$(printf '%s\n' "$runtime_overrides" | sed -n 's/^MULTI_ENGINE_RESTORE_SERVER_IMAGES_PULL=//p')"
+    restore_pull="${restore_pull:-false}"
+    if [[ "$restore_pull" != true && "$restore_pull" != false ]]; then
+        echo "ERRO: MULTI_ENGINE_RESTORE_SERVER_IMAGES_PULL deve ser true ou false."
+        return 1
+    fi
+    timeout="$(printf '%s\n' "$config" | sed -n 's/.*"PHYSICAL_SNAPSHOT_TIMEOUT_MINUTES": "\([^"]*\)".*/\1/p' | sort -u)"
+    if [[ ! "$timeout" =~ ^([1-9]|[1-9][0-9]|1[01][0-9]|120)$ ]]; then
+        echo "ERRO: PHYSICAL_SNAPSHOT_TIMEOUT_MINUTES deve ser inteiro 1..120, igual na API e agent."
+        return 1
+    fi
+    if printf '%s\n' "$config" | grep -Eiq '"PHYSICAL_SNAPSHOTS_ENABLED": "true"'; then
+        if [ ! -f "$DOCKER_OPS_FILE" ]; then
+            echo "ERRO: runtimes experimentais indisponiveis. Verifique REGISTRY_OWNER/DUNCKOPS_VERSION e a publicacao de ambas as imagens; ou desative PHYSICAL_SNAPSHOTS_ENABLED. Nenhum servico foi iniciado."
+            return 1
+        fi
+        # Compose parses/interpolates overrides as data, including operator .env values.
+        snapshot_overrides="$(docker compose $COMPOSE_ARGS config --environment | sed -n '/^MYSQL_SNAPSHOT_RUNTIME_IMAGE=/p; /^MARIADB_SNAPSHOT_RUNTIME_IMAGE=/p')"
+        for engine in mysql mariadb; do
+            image="$(printf '%s\n' "$snapshot_overrides" | sed -n "s/^${engine^^}_SNAPSHOT_RUNTIME_IMAGE=//p")"
+            if [ -n "$image" ] && docker image inspect -- "$image" > /dev/null 2>&1; then
+                echo "Usando imagem local explicitamente configurada para ${engine}-snapshot-runtime."
+                continue
+            fi
+            if ! COMPOSE_PROFILES= docker compose $COMPOSE_ARGS --profile tools pull "${engine}-snapshot-runtime"; then
+                echo "ERRO: ${engine}-snapshot-runtime indisponivel. Verifique REGISTRY_OWNER/DUNCKOPS_VERSION e a publicacao da imagem; ou configure o override com uma imagem instalada localmente; ou desative PHYSICAL_SNAPSHOTS_ENABLED. Nenhum servico foi iniciado."
+                return 1
+            fi
+        done
+    fi
+    if [ "$multi" = true ]; then
+        if [ ! -f "$DOCKER_OPS_FILE" ]; then
+            echo "ERRO: Compose de ferramentas ausente; nenhum servico foi iniciado."
+            return 1
+        fi
+        # Resolve explicit helper overrides locally; never send local tags/IDs to a registry.
+        image="$(docker compose $COMPOSE_ARGS config --environment | sed -n 's/^ENGINE_ARTIFACTS_RUNTIME_IMAGE=//p')"
+        if [ -n "$image" ]; then
+            docker image inspect -- "$image" > /dev/null 2>&1 || {
+                echo "ERRO: ENGINE_ARTIFACTS_RUNTIME_IMAGE deve estar instalada localmente; ou deixe vazio para imagem publicada."
+                return 1
+            }
+        else
+            release_version="$(docker compose $COMPOSE_ARGS config --environment | sed -n 's/^DUNCKOPS_VERSION=//p')"
+            if [[ ! "$release_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                echo "ERRO: runtime de artefatos exige DUNCKOPS_VERSION fixada em release X.Y.Z, nunca latest."
+                return 1
+            fi
+            COMPOSE_PROFILES= docker compose $COMPOSE_ARGS --profile tools pull engine-artifacts-runtime || return 1
+        fi
+        copy_version="$(docker compose $COMPOSE_ARGS config --environment | sed -n 's/^ENGINE_COPY_RUNTIME_VERSION=//p')"
+        copy_version="${copy_version:-$(docker compose $COMPOSE_ARGS config --environment | sed -n 's/^DUNCKOPS_VERSION=//p')}"
+        if [[ ! "$copy_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "ERRO: runtimes de copia exigem ENGINE_COPY_RUNTIME_VERSION / DUNCKOPS_VERSION X.Y.Z."
+            return 1
+        fi
+        for variant in mysql-8.0 mysql-8.4 mariadb-10.11 mariadb-11.4; do
+            service="engine-copy-${variant//./-}"
+            image="$(docker compose $COMPOSE_ARGS --profile tools config --images "$service")" || return 1
+            if docker image inspect -- "$image" > /dev/null 2>&1; then
+                continue
+            fi
+            if [[ "$image" == ghcr.io/* ]]; then
+                COMPOSE_PROFILES= docker compose $COMPOSE_ARGS --profile tools pull "$service" || return 1
+            else
+                echo "ERRO: runtime de copia local/custom nao instalado: $image. Construa-o ou configure prefixo GHCR publicado."
+                return 1
+            fi
+        done
+        for engine in mysql mariadb mongo sqlserver; do
+            [ "$engine" != sqlserver ] || [ "$sql" = true ] || continue
+            service="${engine}-operations-runtime"
+            override_key="${engine^^}_OPERATIONS_RUNTIME_IMAGE"
+            [ "$engine" != sqlserver ] || override_key=SQLSERVER_OPERATIONS_CLIENT_TOOLS_IMAGE
+            image="$(printf '%s\n' "$runtime_overrides" | sed -n "s/^${override_key}=//p")"
+            if [ -n "$image" ]; then
+                if ! docker image inspect -- "$image" > /dev/null 2>&1; then
+                    echo "ERRO: $override_key deve referenciar imagem ja instalada localmente; instale/aprove manualmente ou deixe vazio para download publicado."
+                    return 1
+                fi
+                continue
+            fi
+            COMPOSE_PROFILES= docker compose $COMPOSE_ARGS --profile tools pull "$service" || return 1
+        done
+        if [ "$restore_pull" = true ]; then
+            for engine in mysql mariadb; do
+                image="$(printf '%s\n' "$config" | sed -n "s/.*\"${engine^^}_RESTORE_SERVER_IMAGE\": \"\([^\"]*\)\".*/\1/p" | sort -u)"
+                docker image inspect -- "$image" > /dev/null 2>&1 && continue
+                COMPOSE_PROFILES= docker compose $COMPOSE_ARGS --profile tools pull "${engine}-restore-server" || return 1
+            done
+            for image in mysql:8.0 mysql:8.4 mariadb:10.11 mariadb:11.4 mongo:6.0 mongo:7.0 mongo:8.0; do
+                docker image inspect -- "$image" > /dev/null 2>&1 && continue
+                docker pull "$image" || return 1
+            done
+        fi
+    fi
+    # Ignore inherited tools profiles: experimental images require explicit opt-in.
+    COMPOSE_PROFILES= docker compose $COMPOSE_ARGS pull
 
     if [ -f "$DOCKER_OPS_FILE" ]; then
         docker compose $COMPOSE_ARGS --profile tools pull backup-runtime
@@ -328,6 +455,13 @@ if [ ! -f .env ]; then
     set_env_value "Encryption__MasterKey" "$enc_key"
     set_env_value "Jwt__Key" "$jwt_key"
     set_env_value "DOCKER_AGENT_KEY" "$agent_key"
+    if [ -n "${DUNCKOPS_VERSION:-}" ]; then
+        if [[ ! "$DUNCKOPS_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "ERRO: DUNCKOPS_VERSION exige release X.Y.Z publicada, nunca latest."
+            exit 1
+        fi
+        set_env_value "DUNCKOPS_VERSION" "$DUNCKOPS_VERSION"
+    fi
     if [ -n "${DUNCKOPS_LICENSE_KEY:-}" ]; then
         set_env_value "DUNCKOPS_LICENSE_KEY" "$DUNCKOPS_LICENSE_KEY"
     fi
@@ -409,7 +543,7 @@ pull_managed_images
 echo ""
 echo "[5/5] Iniciando servicos..."
 
-docker compose $COMPOSE_ARGS up -d
+COMPOSE_PROFILES= docker compose $COMPOSE_ARGS up -d
 
 echo ""
 echo ""

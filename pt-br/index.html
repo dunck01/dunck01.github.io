@@ -35,7 +35,8 @@
         <a class="button" href="https://dunckops.com/pt-br">Ver planos no site oficial</a>
         <a class="button secondary" href="https://dunckops.com/pt-br/login">Entrar</a>
       </div>
-      <code>curl -fsSL https://get.dunckops.com/install.sh | sudo bash</code>
+      <p>Defina <code>DUNCKOPS_VERSION</code> com uma release X.Y.Z realmente publicada no cat&#225;logo oficial, sem prefixo v. Nunca use latest ou um n&#250;mero fict&#237;cio.</p>
+      <code>curl -fsSL https://get.dunckops.com/install.sh | sudo env DUNCKOPS_VERSION="${DUNCKOPS_VERSION:?Selecione uma release publicada}" bash</code>
       <section class="steps" aria-label="Fluxo de instala&#231;&#227;o">
         <div class="step">
           <strong>1. Rode na VPS</strong>
@@ -49,6 +50,11 @@
           <strong>3. Configure a licen&#231;a</strong>
           <span>Informe sua chave ou deixe em branco para ativar o plano gratuito.</span>
         </div>
+      </section>
+      <section aria-labelledby="database-engines">
+        <h2 id="database-engines">Bancos de dados</h2>
+        <p>PostgreSQL continua sendo o motor operacional dispon&#237;vel. MySQL, MariaDB, MongoDB e Microsoft SQL Server est&#227;o no roteiro de implementa&#231;&#227;o, ainda sem backup, PITR ou r&#233;plica com atraso dispon&#237;veis nesta vers&#227;o.</p>
+        <p>Todos os planos autorizam os mesmos motores; limites e recursos variam conforme o plano. O limite de bancos conta o total combinado entre motores. Essa autoriza&#231;&#227;o n&#227;o habilita recursos ainda n&#227;o implementados. O instalador permanece inalterado nesta etapa.</p>
       </section>
       <nav aria-label="Arquivos p&#250;blicos">
         <a href="/install.sh">install.sh</a>
