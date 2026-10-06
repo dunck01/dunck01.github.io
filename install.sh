@@ -112,6 +112,20 @@ download_file() {
     fi
 }
 
+resolve_latest_release_version() {
+    local metadata version
+    if command -v curl >/dev/null 2>&1; then
+        metadata="$(curl -fsSL --max-time 20 "${BASE_URL}/version.json")" || return 1
+    elif command -v wget >/dev/null 2>&1; then
+        metadata="$(wget -q -T 20 -O - "${BASE_URL}/version.json")" || return 1
+    else
+        return 1
+    fi
+    version="$(printf '%s\n' "$metadata" | sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([0-9.]*\)".*/\1/p')"
+    [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || return 1
+    printf '%s' "$version"
+}
+
 try_download_license_public_key() {
     local public_key=""
 
@@ -455,13 +469,6 @@ if [ ! -f .env ]; then
     set_env_value "Encryption__MasterKey" "$enc_key"
     set_env_value "Jwt__Key" "$jwt_key"
     set_env_value "DOCKER_AGENT_KEY" "$agent_key"
-    if [ -n "${DUNCKOPS_VERSION:-}" ]; then
-        if [[ ! "$DUNCKOPS_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "ERRO: DUNCKOPS_VERSION exige release X.Y.Z publicada, nunca latest."
-            exit 1
-        fi
-        set_env_value "DUNCKOPS_VERSION" "$DUNCKOPS_VERSION"
-    fi
     if [ -n "${DUNCKOPS_LICENSE_KEY:-}" ]; then
         set_env_value "DUNCKOPS_LICENSE_KEY" "$DUNCKOPS_LICENSE_KEY"
     fi
@@ -476,6 +483,24 @@ if [ ! -f .env ]; then
 else
     echo "Arquivo .env ja existe, mantendo configuracao atual."
 fi
+
+if [ -z "${DUNCKOPS_VERSION:-}" ]; then
+    DUNCKOPS_VERSION="$(read_env_value DUNCKOPS_VERSION)"
+fi
+if [ -z "${DUNCKOPS_VERSION:-}" ]; then
+    DUNCKOPS_VERSION="$(resolve_latest_release_version || true)"
+    if [ -z "$DUNCKOPS_VERSION" ]; then
+        echo "ERRO: nao foi possivel detectar release publicada. Defina DUNCKOPS_VERSION=X.Y.Z e tente novamente."
+        exit 1
+    fi
+    echo "Release publicada detectada: $DUNCKOPS_VERSION"
+fi
+if [[ ! "$DUNCKOPS_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "ERRO: DUNCKOPS_VERSION exige release X.Y.Z publicada, nunca latest."
+    exit 1
+fi
+set_env_value "DUNCKOPS_VERSION" "$DUNCKOPS_VERSION"
+export DUNCKOPS_VERSION
 
 chmod 600 .env
 
