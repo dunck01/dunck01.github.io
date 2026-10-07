@@ -21,6 +21,10 @@ if [ ! -f .env ]; then
 fi
 
 COMPOSE_FILE="docker-compose.prod.yml"
+# Updates use persisted installer ports, not unrelated shell overrides.
+for port_key in WEB_PORT API_PORT LOCAL_MINIO_API_PORT LOCAL_MINIO_CONSOLE_PORT; do
+    unset "$port_key"
+done
 DOCKER_OPS_FILE="docker-compose.docker-ops.prod.yml"
 BASE_URL="${DUNCKOPS_BASE_URL:-https://get.dunckops.com}"
 
@@ -207,6 +211,24 @@ download_postgres_build_assets() {
 }
 
 echo "Creating pre-update backup..."
+command -v curl >/dev/null 2>&1 || { echo "ERRO: instale curl para validar prontidao local; servicos nao foram interrompidos."; exit 1; }
+# Published installations may not yet contain this helper. Fetch before downtime.
+download_file "scripts/install-ports.sh" "scripts/install-ports.sh.new"
+mv "scripts/install-ports.sh.new" "scripts/install-ports.sh"
+source "scripts/install-ports.sh"
+port_environment="$(docker compose $COMPOSE_ARGS config --environment)"
+for port_key in WEB_PORT API_PORT LOCAL_MINIO_API_PORT LOCAL_MINIO_CONSOLE_PORT; do
+    port_value="$(printf '%s\n' "$port_environment" | sed -n "s/^${port_key}=//p")"
+    case "$port_key" in
+        WEB_PORT) port_value="${port_value:-9000}" ;;
+        API_PORT) port_value="${port_value:-9100}" ;;
+        LOCAL_MINIO_API_PORT) port_value="${port_value:-9002}" ;;
+        LOCAL_MINIO_CONSOLE_PORT) port_value="${port_value:-9001}" ;;
+    esac
+    parse_install_binding "$port_value"
+    export "$port_key=$port_value"
+done
+configure_install_minio_endpoint "$port_environment"
 "$SCRIPT_DIR/backup-before-update.sh"
 
 echo "Downloading current Compose files..."
@@ -221,6 +243,7 @@ pull_managed_images
 echo "Restarting services..."
 docker compose $COMPOSE_ARGS down
 COMPOSE_PROFILES= docker compose $COMPOSE_ARGS up -d
+wait_install_ready
 
 download_file "scripts/update.sh" "scripts/update.sh.new"
 download_file "scripts/rollback.sh" "scripts/rollback.sh.new"

@@ -156,6 +156,7 @@ download_postgres_build_assets() {
 }
 
 download_support_scripts() {
+    download_file "scripts/install-ports.sh" "scripts/install-ports.sh"
     download_file "scripts/update.sh" "scripts/update.sh"
     chmod +x "scripts/update.sh"
     echo "  scripts/update.sh (atualizado)"
@@ -444,12 +445,17 @@ download_support_scripts
 echo ""
 echo "[3/5] Configurando variaveis de ambiente..."
 
+INSTALL_FRESH=false
 if [ ! -f .env ]; then
+    INSTALL_FRESH=true
     if [ -f .env.production.example ]; then
         cp .env.production.example .env
     else
         touch .env
     fi
+    # Template ports are implicit until preflight succeeds, including after retries.
+    sed -i '/^WEB_PORT=/d; /^API_PORT=/d; /^LOCAL_MINIO_API_PORT=/d; /^LOCAL_MINIO_CONSOLE_PORT=/d' .env
+    set_env_value "DUNCKOPS_INSTALL_PORTS_PENDING" "true"
 
     echo "Gerando secrets locais no arquivo .env:"
     echo ""
@@ -543,17 +549,9 @@ if ! grep -q "^INSTALLATION_NAME=" .env; then
     set_env_value "INSTALLATION_NAME" "$INSTALLATION_NAME"
 fi
 
-if ! grep -q "^WEB_PORT=" .env || grep -q "^WEB_PORT=5173$" .env; then
-    set_env_value "WEB_PORT" "9000"
-fi
-
-if ! grep -q "^API_PORT=" .env || grep -q "^API_PORT=9000$" .env; then
-    set_env_value "API_PORT" "9100"
-fi
-
-if ! grep -q "^CORS_ORIGINS=" .env || grep -q "^CORS_ORIGINS=http://localhost:5173$" .env; then
-    set_env_value "CORS_ORIGINS" "http://localhost:9000"
-fi
+source scripts/install-ports.sh
+detect_install_access_host online
+configure_install_ports
 
 echo ""
 echo "[4/5] Baixando imagens Docker..."
@@ -574,7 +572,7 @@ echo ""
 echo ""
 echo "Verificando status..."
 
-sleep 3
+wait_install_ready
 docker compose $COMPOSE_ARGS ps
 
 echo ""
@@ -582,9 +580,7 @@ echo "=============================================="
 echo "  Instalacao concluida!"
 echo "=============================================="
 echo ""
-echo "Servicos:"
-echo "  - Web:    http://localhost:${WEB_PORT:-9000}"
-echo "  - API:    http://localhost:${API_PORT:-9100}"
+report_install_access login
 echo ""
 echo "Comandos uteis:"
 echo "  Status   : docker compose $COMPOSE_ARGS ps"
@@ -593,8 +589,8 @@ echo "  Atualizar: cd $INSTALL_DIR && ./scripts/update.sh"
 echo "  Rollback : cd $INSTALL_DIR && ./scripts/rollback.sh <versao>"
 echo ""
 echo "Proximos passos:"
-echo "  1. Acesse http://IP_DA_VPS:${WEB_PORT:-9000}/login"
+echo "  1. Abra /login somente pelo dominio HTTPS ou localhost com tunel acima."
 echo "  2. Primeiro acesso: entre com Owner da empresa na conta DunckOps comercial"
 echo "     Informe sua chave de licenca, se tiver uma; sem chave, o fluxo comercial configura licenca gratuita"
-echo "  3. Depois use http://IP_DA_VPS:${WEB_PORT:-9000}/dashboard"
+echo "  3. Depois abra /dashboard pelo mesmo acesso seguro."
 echo ""
