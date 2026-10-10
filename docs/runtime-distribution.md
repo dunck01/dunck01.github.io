@@ -57,11 +57,12 @@ pnpm offline:bundle -Version $PublishedRelease -MultiEngineOperations -TrustedLi
 
 Offline installation checks local helper and all four copy image references when MULTI is enabled and
 uses `up --pull never`. No installer or publisher accepts a SQL Server EULA.
-SQL provisioning is separate from SQL operations opt-in: the operator must
-confirm licensing outside the application, set
-`SQLSERVER_PROVISIONING_LICENSE_CONFIRMED=true`, and explicitly choose
-`SQLSERVER_PROVISIONING_PID`. Defaults remain false/empty. A Developer edition
-does not grant production licensing rights.
+SQL provisioning is separate from SQL operations opt-in: each new-container
+request selects an edition and requires a customer licensing declaration plus
+separate Microsoft EULA acceptance in the UI/API, enforced again by the Agent.
+No installer setting accepts terms or overrides per-request consent. Express
+is not supported by this SQL backup profile; Developer is development/test only.
+DunckOps does not supply or verify licenses. See `sqlserver-provisioning.md`.
 
 ## Offline Core server images
 
@@ -80,8 +81,15 @@ The seven new family references are included only with the bundle MULTI opt-in.
 They do not start servers during packaging/install. Online install/update prepares
 these same seven references only when BOTH `MULTI_ENGINE_OPERATIONS_ENABLED=true`
 and `MULTI_ENGINE_RESTORE_SERVER_IMAGES_PULL=true`; existing images are skipped.
-Default online downloads are unchanged. No SQL Server server image is added or
-downloaded; SQL client tools are not a SQL Server/EULA approval.
+Default online downloads are unchanged. Generic bundles omit the SQL Server
+server image. A private operator bundle may add SQL 2022 using
+`-IncludeSqlServer2022 -SqlServerDistributionRightsAcknowledged -MultiEngineOperations`.
+SQL 2025 uses `-IncludeSqlServer2025` under the same rights guard. DryRun can list
+these dependencies without declaring redistribution rights or accepting EULA.
+This requires independently established distribution rights and is not EULA
+acceptance or a license grant. Packaging only pulls/saves images; it never runs
+SQL Server. `-DryRun` lists dependencies without downloads, writes or license-key
+verification, and cannot establish bundle authenticity.
 
 With MULTI enabled, offline install requires all seven exact server tags plus
 artifact/copy helpers locally before platform startup. An incomplete bundle
@@ -102,7 +110,31 @@ or evidence of copy/restore/PITR correctness.
 Remote access requires an explicit bind address and matching
 `DOCKER_AGENT_EXTERNAL_HOST`; changing the latter alone does not expose ports.
 
-## UI evidence
+## SQL Runtime Approval
+
+Managed SQL setup accepts either an independently approved immutable
+`SQLSERVER_OPERATIONS_RUNTIME_IMAGE=sha256:<64 hex>` administrator pin, or public
+RSA-PSS/SHA256 release approval. Signed mode uses `SQLSERVER_RUNTIME_APPROVAL_PAYLOAD`
+and `SQLSERVER_RUNTIME_APPROVAL_SIGNATURE` (base64), public key PEM with escaped
+newlines or base64 SPKI in `SQLSERVER_RUNTIME_APPROVAL_PUBLIC_KEY`, and independently
+trusted SPKI SHA256 in `SQLSERVER_RUNTIME_APPROVAL_PUBLIC_KEY_SHA256`.
+
+Exact signed payload fields: `schemaVersion=1`, `release` equal to DUNCKOPS_VERSION,
+`platform=linux/amd64`, `imageId=sha256:<64 hex>`, `validUntilUtc` with UTC offset zero.
+Unknown/duplicate fields, expired approvals, wrong signature/pin/release/platform,
+conflicting administrator image ID and nonmatching installed content are rejected.
+Signature covers original UTF-8 payload bytes, not reserialized JSON. No private
+distribution key is generated, transmitted, stored or shipped by these consumers.
+Tags alone never become approval. Download/load and approval are separate steps.
+Stopping owned actors and accessing signed archives do not require renewing an
+expired runtime approval merely for cleanup.
+
+Managed PKI needs no operator-created certificate/signing/backup volumes. Public
+API/Worker certificate cache is mounted separately and owned by non-root UID 1001;
+per-company private CA/signing volumes stay exclusively on agent Docker host.
+Optional advanced TLS overlay retains existing external-volume behavior.
+
+## UI Evidence
 
 `GET /api/v1/databases/provisioning-capabilities` is an admin-only MediatR query
 to the authenticated Agent's `GET /api/engine-instances/capabilities`.
@@ -160,11 +192,11 @@ created to conceal a missing version-aware resolver.
 creates a target; this setting alone creates no network. SQL defaults remain
 `SQLSERVER_PROVISIONING_ENCRYPT=true` and
 `SQLSERVER_PROVISIONING_TRUST_SERVER_CERTIFICATE=false`. Stock self-signed bootstrap
-is refused by the current stock-image capability gate unless operator explicitly
-enables trust-server-certificate with encryption retained. This is isolated-lab
-guidance, not verified production TLS: mounted-certificate provisioning is not
-implemented in the current Agent. Explicit
-trust bypass is not a production trust solution;
+is refused; the implemented operator profile requires named TLS RO, public CA RO,
+company archive and separate signing volumes. See `sqlserver-provisioning.md` and
+optional `docker-compose.sqlserver-tls.yml`. Missing prerequisites block capabilities
+and creation; a validated profile permits experimental provisioning, not production.
+Explicit trust bypass is not a production trust solution;
 encryption must never be silently disabled. Licensing approval alone is not
 evidence of reachable network, trusted TLS or successful native bootstrap.
 
@@ -176,7 +208,7 @@ Current Agent declarations are capabilities, not a release-wide smoke result:
 | MySQL | 8.0, 8.4 | Single database, InnoDB base tables only |
 | MariaDB | 10.11, 11.4 | Single database, InnoDB base tables only |
 | MongoDB | 6.0, 7.0, 8.0 | Unavailable |
-| SQL Server | Stock-image lab only, accepted versions and external license/PID plus explicit encrypted TLS trust policy | Unavailable |
+| SQL Server | Conditional experimental operator TLS/backup profile; SQL 2022/2025 Standard/legacy Enterprise/Developer, Express unavailable | Logical copy unavailable; native .bak import uses authorized S3 and updated approved runtime |
 
 MySQL/MariaDB views, routines, triggers and events are unsupported by this copy
 mode. SQL Server operator licensing/PID and TLS policy are separate prerequisites,

@@ -156,6 +156,7 @@ download_postgres_build_assets() {
 }
 
 download_support_scripts() {
+    download_file "scripts/sqlserver-profile.sh" "scripts/sqlserver-profile.sh"
     download_file "scripts/install-ports.sh" "scripts/install-ports.sh"
     download_file "scripts/update.sh" "scripts/update.sh"
     chmod +x "scripts/update.sh"
@@ -432,7 +433,7 @@ DOCKER_OPS_FILE="docker-compose.docker-ops.prod.yml"
 ENV_EXAMPLE=".env.production.example"
 REMOTE_ENV_EXAMPLE="env.production.example"
 
-for filename in "$COMPOSE_FILE" "$DOCKER_OPS_FILE"; do
+for filename in "$COMPOSE_FILE" "$DOCKER_OPS_FILE" docker-compose.sqlserver-tls.yml; do
     download_file "$filename" "$filename"
     echo "  $filename (atualizado)"
 done
@@ -489,6 +490,29 @@ if [ ! -f .env ]; then
 else
     echo "Arquivo .env ja existe, mantendo configuracao atual."
 fi
+
+# Validate shell overrides only; persisted values and SQL settings are resolved by Compose below.
+provisioning_keys=(MULTI_ENGINE_OPERATIONS_ENABLED ENGINE_PROVISIONING_ALLOW_IMAGE_PULL)
+for key in "${provisioning_keys[@]}"; do
+    if [[ -v "$key" ]]; then
+        value="${!key}"
+    else
+        continue
+    fi
+    case "$value" in
+        ""|true|false) ;;
+        *) echo "ERRO: $key deve ser true ou false."; exit 1 ;;
+    esac
+    if [[ -v "$key" && -z "$value" ]]; then
+        echo "ERRO: $key deve ser true ou false."
+        exit 1
+    fi
+done
+for key in "${provisioning_keys[@]}"; do
+    if [[ -v "$key" ]]; then
+        set_env_value "$key" "${!key}"
+    fi
+done
 
 if [ -z "${DUNCKOPS_VERSION:-}" ]; then
     DUNCKOPS_VERSION="$(read_env_value DUNCKOPS_VERSION)"
@@ -560,6 +584,8 @@ COMPOSE_ARGS="-f $COMPOSE_FILE"
 if [ -f "$DOCKER_OPS_FILE" ]; then
     COMPOSE_ARGS="$COMPOSE_ARGS -f $DOCKER_OPS_FILE"
 fi
+source scripts/sqlserver-profile.sh
+configure_sqlserver_profile true || { echo "ERRO: configuracao publica do perfil SQL invalida."; exit 1; }
 
 pull_managed_images
 

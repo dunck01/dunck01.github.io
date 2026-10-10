@@ -35,6 +35,8 @@ if [ -f "$DOCKER_OPS_FILE" ]; then
 fi
 
 echo "Stopping current services..."
+source "$SCRIPT_DIR/sqlserver-profile.sh"
+configure_sqlserver_profile || { echo "ERRO: perfil SQL invalido; nenhum restart executado."; exit 1; }
 docker compose $COMPOSE_ARGS down
 
 echo "Setting version to $VERSION..."

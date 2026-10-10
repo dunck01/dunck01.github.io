@@ -27,18 +27,19 @@ ownership remain mandatory. This implementation is not native SQL smoke evidence
 
 ## Delivery status
 
-This module is independent of PostgreSQL and the commercial platform. Integration into routing, DI, API contracts, UI and deployment belongs to the main implementation. No existing files in those areas are changed.
+This module is independent of PostgreSQL and the commercial platform. Routing, DI, API contracts, UI, managed provisioning and deployment integration are implemented in this repository. Operational SQL clients remain distinct from server creation and licensing consent.
 
 | Operation | Status | Actual behavior |
 | --- | --- | --- |
 | `fullsnapshot` | Implemented, not SQL-homologated | Native single-database COPY_ONLY backup, CHECKSUM, HEADERONLY, FILELISTONLY, VERIFYONLY, SHA-256 and signed manifest |
 | `transactionlogs` | Implemented, not SQL-homologated | Dedicated persistent ordinary BACKUP LOG collector, signed sealed catalog, health/status/stop/resume |
 | `pitr` | Implemented, not SQL-homologated | Verified COPY_ONLY full + strict native log chain, fresh MOVE/NORecovery, UTC STOPAT and ONLINE verification on an operator-provisioned empty target |
+| `nativeclone` | Implemented, not SQL-homologated | Signed COPY_ONLY FULL restored with generated MOVE paths and RECOVERY on a dedicated target; native ONLINE/files check, no BACPAC/logical-copy claim |
 | `delayedstandby` | Implemented, not SQL-homologated | Dedicated persistent delayed log apply, GUID-local STANDBY undo file, signed restore ownership, status/stop/resume and explicit RECOVERY promotion |
 
 **Implementation exists, live SQL validation does not.** All mutation requires both `MULTI_ENGINE_OPERATIONS_ENABLED=true` and the dedicated `SQLSERVER_OPERATIONS_UNVERIFIED_OPT_IN=true`, each false by default. Operator opt-in permits lab execution; it does not certify production readiness. Success responses explicitly keep `implementationVerified=false`, `productionReady=false` and `seededDataVerified=false`. ONLINE verification uses native state/files and an actual metadata read, not a fabricated seeded-data pass. A snapshot's immutable manifest still has `restoreValidated=false`; separate restore records represent actual ONLINE verification if execution succeeds.
 
-No licensed SQL Server environment was provisioned for this delivery. No SQL Server server container was started, no EULA was accepted, and no SQL backup/restore smoke was executed. The runtime image contains .NET and a SQL client, not SQL Server. The operator must independently provision and license every source or future target, accepting applicable Microsoft terms outside this application. No API boolean represents EULA acceptance; `consentBackupIo` authorizes operational cost only. Edition detection does not prove licensing rights.
+No licensed SQL Server environment was provisioned for this delivery. No SQL Server server container was started, no EULA was accepted, and no SQL backup/restore smoke was executed. The runtime image contains .NET and a SQL client, not SQL Server. Future managed server creation requires explicit per-request licensing/EULA consent through separate provisioning APIs. Operational `consentBackupIo` does not accept EULA; edition detection does not prove licensing rights. External sources remain independently provisioned/licensed.
 
 ## Integration contract
 
@@ -75,6 +76,7 @@ Every row below lists ALL required fields. No extra fields, alternative casing o
 | `transactionlogs` / `start`, `resume` | `action`, `sourceContainer`, `database`, `username`, `password`, `snapshotId`, `collectionId`, `intervalSeconds`, `consentLogChainChanges` |
 | `transactionlogs` / `status`, `stop` | `action`, `collectionId` |
 | `pitr` / `restore` | `action`, `sourceContainer`, `targetContainer`, `database`, `username`, `password`, `snapshotId`, `collectionId`, `restoreId`, `stopAtUtc`, `consentTargetRestore` |
+| `nativeclone` / `restore` | `action`, `sourceContainer`, `targetContainer`, `database`, `username`, `password`, `snapshotId`, `restoreId`, `consentTargetRestore` |
 | `delayedstandby` / `start`, `resume` | `action`, `sourceContainer`, `targetContainer`, `database`, `username`, `password`, `snapshotId`, `collectionId`, `restoreId`, `intervalSeconds`, `delaySeconds`, `consentTargetRestore` |
 | `delayedstandby` / `status`, `stop` | `action`, `restoreId` |
 | `delayedstandby` / `promote` | `action`, `sourceContainer`, `targetContainer`, `database`, `username`, `password`, `snapshotId`, `collectionId`, `restoreId`, `consentPromotion` |
@@ -181,7 +183,7 @@ These public settings are included in deployment environment examples. No extra 
 
 ## Supported Operator Layout
 
-Only standalone SQL Server 2022 Linux amd64, TDS port 1433 inside the source network namespace. Native protocol verifies ProductMajorVersion 16, host platform Linux and EngineEdition 2 or 3. Allowed native edition strings: Standard, Enterprise, Developer, Enterprise Evaluation and Web, each `Edition (64-bit)` except Evaluation's `Enterprise Evaluation Edition (64-bit)`. Express and other platforms/versions are rejected, regardless of image name or labels.
+Standalone SQL Server 2022/2025 Linux amd64, TDS port 1433 inside the source network namespace. Native protocol verifies ProductMajorVersion 16/17, RTM ProductLevel (CUs/GDR included), host platform Linux and EngineEdition 2 or 3. EditionID must match Standard, legacy Enterprise Server/CAL or Developer/Developer Enterprise. SQL 2025 Developer uses EnterpriseDeveloper PID, not an assumed unchanged edition string. Developer is restricted to development/test. StandardDeveloper, Express, Evaluation, Web and other platforms/versions are rejected, regardless of image name or labels. These are implemented experimental profiles, not live homologation claims. Native external .bak import is described in `sqlserver-provisioning.md`; source 2019 upgrades to a 2022/2025 target rather than joining this log protocol directly.
 
 Log/restore/standby flows additionally require native `CURRENT_TIMEZONE_ID()` in UTC/Etc-UTC/GMT zero-offset equivalents AND DATEPART TZOFFSET = 0. The fullsnapshot records this native identity; an old snapshot lacking it is not accepted for these flows. Native backup header TimeZone must be a recognized zero-offset value; unknown formats are rejected, never guessed or converted. SQL Server 2022 LastValidRestoreTime must exist and be valid for each log. Other timezones and recovery fork transitions are intentionally unsupported.
 
@@ -192,7 +194,7 @@ pitr.managed=true
 pitr.company-id=<request company UUID in lowercase D format>
 ```
 
-Exactly two explicitly declared, writable Docker named volumes must be mounted in the source:
+The legacy layout uses two explicitly declared, writable Docker named volumes:
 
 ```text
 <operator-data-volume>   -> /var/opt/mssql
@@ -201,9 +203,21 @@ Exactly two explicitly declared, writable Docker named volumes must be mounted i
 
 Both volumes and the separate signing volume must already exist, use Docker's `local` driver without driver options, and use the complete volume root. Data, backup and signing volumes must differ. Anonymous/implicit image volumes, host bind paths, subpaths, extra source mounts, tmpfs overrides, Swarm/Kubernetes and container-network sources are rejected. The source's backup volume is simultaneously mounted in the client as `/backups`; source datadir is NEVER mounted in the client. BACKUP writes through the licensed SQL Server process to `/var/opt/mssql/backup/sqlserver/<company N>/<operation N>/database.bak`, not through a read-only datadir mount.
 
+The operator provisioning profile additionally admits exactly ONE named RO TLS
+mount at `/etc/dunckops/sqlserver-tls`, matching `SQLSERVER_PROVISIONING_TLS_VOLUME`.
+Only configured company-owned local volume roots qualify; no bind paths, other
+third mounts or caller-supplied volume names. The same exception applies to
+registration and restore targets, without changing empty-target/exclusive-data/
+network-none/backup-RO requirements. See `sqlserver-provisioning.md` for deployment.
+With this profile configured, clients receive only the distinct public trust
+volume RO at `/etc/dunckops/sqlserver-trust` and `SSL_CERT_FILE` selects its CA bundle.
+Actual operations NEVER mount server TLS private keys. A short-lived approved
+client-only preflight can read TLS keys to validate certificate/key agreement;
+it has network none, no logs and emits no key/certificate contents.
+
 Operator-provisioned restore targets must carry `pitr.managed=true`, the exact `pitr.company-id`, and `pitr.role=sqlserver-restore-target`. Their NEW dedicated datadir volume must also carry the company and role labels and must not be mounted in any other container, even stopped containers. Source and target datadir volumes must differ. Target Docker network mode must be exactly `none`, no published ports, no privileged mode. Target mounts exactly a writable dedicated `/var/opt/mssql` named volume and the SAME backup volume READ-ONLY at `/var/opt/mssql/backup`. Tool client shares only the target network namespace and mounts backup RW solely for signed restore records, never the target datadir. The licensed target's own SQL process performs MOVE/STANDBY writes in its dedicated datadir.
 
-Before INITIAL restore, the target must contain NO user database, not merely lack the generated requested name. VIEW ANY DATABASE permission is checked so an underprivileged login cannot hide other databases. Native file-existence checks reject preexisting GUID MOVE/undo paths; prior msdb restore history for the generated database name also rejects UUID reuse. Never reuse a restore UUID or target datadir after ambiguous execution. No `WITH REPLACE`, DROP DATABASE, ALTER recovery model, source restore, application-created SQL Server container or EULA environment exists in the implementation.
+Before INITIAL restore, the target must contain NO user database, not merely lack the generated requested name. VIEW ANY DATABASE permission is checked so an underprivileged login cannot hide other databases. Native file-existence checks reject preexisting GUID MOVE/undo paths; prior msdb restore history for the generated database name also rejects UUID reuse. Never reuse a restore UUID or target datadir after ambiguous execution. Operational restore clients do not use WITH REPLACE, DROP DATABASE, ALTER source recovery model or source restore. Managed target creation is a separate authenticated job with licensing/EULA consent, exclusive datadir and operation ownership.
 
 Provision the backup volume for UID 10001, and run SQL Server with its standard UID 10001. Created namespace directories use mode 0700. The client runs `10001:0`, all Linux capabilities dropped, no privileged mode, no published port, read-only root, no Docker socket, 512 MiB memory, one CPU and a 16 MiB tmpfs `/tmp`. It shares the source's network namespace solely to connect to `127.0.0.1:1433`; it mounts only backup and signing volumes. No volume is created automatically, no image is pulled automatically, and no source environment is inherited. Native backup uses BUFFERCOUNT 8 and MAXTRANSFERSIZE 1048576; these are not a source I/O quota. BACKUP can impose I/O, memory and locking costs despite COPY_ONLY. Obtain explicit operational consent and maintenance budget.
 
@@ -234,6 +248,23 @@ Source SQL sessions switch into the requested database with ChangeDatabase befor
 Cancellation disconnects the SQL client, but server-side cancellation/completion cannot be guaranteed. Snapshot `incomplete.json` and actor `pendingArtifactId` preserve uncertainty. No artifact is deleted on failure. Before submitting a fresh operation after timeout, inspect source/target native activity. Agent cleanup removes only its labeled client runtime, never server/volume/data. Failure to confirm cleanup closes its local gate until reconciliation/restart. Docker socket, signing key and SQL Server filesystem administrators are trusted; symlink checks and signatures are not protection against a hostile host administrator or rollback of valid historical signed states. Atomic rename lacks directory fsync; handle storage/power-loss durability externally.
 
 ## Continuous Log Collector
+
+Managed source creation is queued as `sqlserver_provision` with encrypted request,
+quota reservation, dispatch boundary and no native replay. Worker initializes FULL
+recovery/ordinary FULL after separate I/O consent, atomically registers source and
+encrypted credentials with DatabaseInstance, then runs a durable signed fullsnapshot
+job and optional log collector job with PITR entitlement/explicit chain consent.
+The bootstrap archive is not itself a signed catalog snapshot. External sources
+remain subject to operator initialization requirements below. See provisioning
+document for managed PKI, pinned public leaf and dedicated target creation.
+
+Collector startup/resume through engine-jobs persists one desired schedule per
+company/source/operation using the existing EngineSchedule model. Maintenance only
+resumes stopped/missing actors with encrypted source credentials and original
+parameters. Explicit stop disables the schedule; uncertain completion disables
+automatic resume. All dispatches revalidate user, company, source and entitlement.
+Scheduling does not remove the 1000-log catalog bound or migrate standby between
+catalogs. Native clone is separate from PITR and needs no log collection/STOPAT.
 
 `start` creates a dedicated owned CLIENT runtime, not a SQL Server instance. `resume` replaces only an exited owned client and reloads signed state with supplied ephemeral credentials. No Docker restart policy stores passwords or blindly starts a client without stdin. Docker/host restart requires explicit resume with credentials. Polling executes ordinary `BACKUP LOG ... WITH CHECKSUM` (NOT COPY_ONLY), which can truncate inactive log and advances/consumes the active operational backup chain. Explicit `consentLogChainChanges` is required. The app does not switch recovery models or manufacture the initial normal full backup. Native FULL recovery, database GUID, fork and a matching non-copy FULL msdb checkpoint are required. Purged/missing msdb initialization history is conservatively rejected. The tool whitelists persisted native metadata and omits HEADERONLY UserName/description; SQL Server's native backup media and msdb can inherently record the operator login, but request passwords are never persisted by this tool.
 
@@ -271,7 +302,7 @@ dotnet build apps/docker-agent/DunckOps.DockerAgent.csproj --no-restore
 
 Base SDK/runtime images are digest-pinned. SQL client package version is pinned; transitive package lockfile is not supplied. Build validates compilation and NuGet audit, not SQL semantics. A no-input client run may check generic failure/redaction without creating a SQL Server instance. `--check-chain` reads a bounded JSON object with native `snapshot` header and `logs` header array from stdin, exercises the real native metadata parser/chain planner offline and emits `offline_metadata_checked` or `offline_metadata_rejected`, always `implementationVerified:false`. Optional `snapshotFiles` and `logFiles` (one native file-list array per log) exercise the same fixed-layout validator used by collector/restore. Use synthetic inline data only for parser checks; never report it as a SQL restore pass. No automated test files are introduced.
 
-Release readiness still requires licensed SQL 2022 lab validation of TLS, permissions, edition strings, native metadata, backup I/O, cancellation and real restore/seeded-data verification. Never report artificial samples or static/build checks as a real SQL backup/PITR/standby pass.
+Release readiness still requires licensed SQL 2022/2025 lab validation of TLS, permissions, edition identity, native metadata, external .bak import, backup I/O, cancellation and real restore/seeded-data verification. Never report artificial samples or static/build checks as a real SQL backup/PITR/standby pass.
 
 Recorded verification on 2026-10-03:
 

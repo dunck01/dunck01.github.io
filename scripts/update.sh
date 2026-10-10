@@ -236,6 +236,12 @@ download_file "$COMPOSE_FILE" "$COMPOSE_FILE.new"
 download_file "$DOCKER_OPS_FILE" "$DOCKER_OPS_FILE.new"
 mv "$COMPOSE_FILE.new" "$COMPOSE_FILE"
 mv "$DOCKER_OPS_FILE.new" "$DOCKER_OPS_FILE"
+download_file "docker-compose.sqlserver-tls.yml" "docker-compose.sqlserver-tls.yml.new"
+mv "docker-compose.sqlserver-tls.yml.new" "docker-compose.sqlserver-tls.yml"
+download_file "scripts/sqlserver-profile.sh" "scripts/sqlserver-profile.sh.new"
+mv "scripts/sqlserver-profile.sh.new" "scripts/sqlserver-profile.sh"
+source scripts/sqlserver-profile.sh
+configure_sqlserver_profile || { echo "ERRO: perfil SQL invalido; nenhum restart executado."; exit 1; }
 
 echo "Pulling pinned release images..."
 pull_managed_images

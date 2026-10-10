@@ -83,6 +83,7 @@ services:
       ENGINE_PROVISIONING_API_SHARED_NETWORK: ${ENGINE_PROVISIONING_API_SHARED_NETWORK:-true}
       SQLSERVER_OPERATIONS_UNVERIFIED_OPT_IN: ${SQLSERVER_OPERATIONS_UNVERIFIED_OPT_IN:-false}
       SQLSERVER_OPERATIONS_TIMEOUT_SECONDS: ${SQLSERVER_OPERATIONS_TIMEOUT_SECONDS:-1800}
+      SQLSERVER_PUBLIC_CERTIFICATE_DIRECTORY: /var/lib/dunckops/sql-public
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:9000}
       VITE_COMMERCIAL_API_URL: ${VITE_COMMERCIAL_API_URL:-}
       CommercialAuth__ApiUrl: ${CommercialAuth__ApiUrl:-}
@@ -98,6 +99,7 @@ services:
       - "${API_PORT:-9100}:8080"
     volumes:
       - dunckops-local-backups:/backups
+      - sqlserver-managed-public:/var/lib/dunckops/sql-public
     labels:
       dunckops.managed: "true"
     healthcheck:
@@ -145,6 +147,9 @@ services:
       MONITORING_EVENTS_API_URL: ${MONITORING_EVENTS_API_URL:-http://api:8080}
       ENGINE_PROVISIONING_API_SHARED_NETWORK: ${ENGINE_PROVISIONING_API_SHARED_NETWORK:-true}
       MONITORING_EVENTS_SHARED_SECRET: ${MONITORING_EVENTS_SHARED_SECRET:-${Jwt__Key:?Jwt__Key is required}}
+      SQLSERVER_PUBLIC_CERTIFICATE_DIRECTORY: /var/lib/dunckops/sql-public
+      MULTI_ENGINE_OPERATIONS_ENABLED: ${MULTI_ENGINE_OPERATIONS_ENABLED:-false}
+      SQLSERVER_OPERATIONS_UNVERIFIED_OPT_IN: ${SQLSERVER_OPERATIONS_UNVERIFIED_OPT_IN:-false}
     depends_on:
       dunckops-db:
         condition: service_healthy
@@ -152,6 +157,7 @@ services:
         condition: service_healthy
     volumes:
       - dunckops-local-backups:/backups
+      - sqlserver-managed-public:/var/lib/dunckops/sql-public
     labels:
       dunckops.managed: "true"
     restart: unless-stopped
@@ -169,6 +175,7 @@ services:
     restart: unless-stopped
 
 volumes:
+  sqlserver-managed-public:
   dunckops-db-data:
     name: dunckops-db-data
     labels:
