@@ -74,6 +74,18 @@ if [ -f "$DOCKER_OPS_FILE" ]; then
 fi
 install_compose() { docker compose $COMPOSE_ARGS "$@"; }
 
+platform_image() {
+    local service="$1" image
+    # Compose includes dependencies in config --images even when a service is supplied.
+    image="$(docker compose $COMPOSE_ARGS config --images "$service" |
+        grep -E '^ghcr\.io/[A-Za-z0-9_.-]+/dunckops-'"$service"':[0-9]+[.][0-9]+[.][0-9]+$')" || return 1
+    if [ -z "$image" ] || [[ "$image" == *$'\n'* ]]; then
+        echo 'ERROR: expected exactly one pinned platform service image.' >&2
+        return 1
+    fi
+    printf '%s\n' "$image"
+}
+
 pull_managed_images() {
     local config timeout runtime_overrides snapshot_overrides engine image key value multi sql restore_pull service override_key
     config="$(docker compose $COMPOSE_ARGS config --format json)"
@@ -307,7 +319,7 @@ echo "Pulling pinned release images..."
 update_state pulling pulling_images
 pull_managed_images
 for service in api worker web docker-agent; do
-    image="$(docker compose $COMPOSE_ARGS config --images "$service")"
+    image="$(platform_image "$service")"
     [ "$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.version"}}' "$image")" = "$TARGET_VERSION" ] || {
         echo 'ERROR: pulled platform image does not match the approved release. No services restarted.'; exit 1;
     }
