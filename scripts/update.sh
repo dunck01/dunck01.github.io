@@ -1,15 +1,41 @@
 #!/usr/bin/env bash
 set +x
 set -euo pipefail
+umask 077
 
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-if [ -f "$SCRIPT_DIR/../docker-compose.prod.yml" ]; then
+if [ "${DUNCKOPS_UPDATE_INSTALL_ROOT:-}" = /opt/dunckops ]; then
+    PROJECT_DIR=/opt/dunckops
+elif [ -f "$SCRIPT_DIR/../docker-compose.prod.yml" ]; then
     PROJECT_DIR="$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)"
 else
     PROJECT_DIR="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
 fi
 
 cd "$PROJECT_DIR"
+
+mkdir .platform-update-lock 2>/dev/null || { echo 'ERROR: another update or interrupted update requires operator inspection.'; exit 1; }
+restarting=false
+saved_config="$(mktemp -d .platform-update.XXXXXX)"
+update_cleanup() {
+    local result=$?
+    if [ "$result" -ne 0 ]; then
+        if [ "$restarting" = false ]; then
+            for file in .env docker-compose.prod.yml docker-compose.docker-ops.prod.yml docker-compose.sqlserver-tls.yml; do
+                [ ! -f "$saved_config/$file" ] || cp -p "$saved_config/$file" "$file"
+            done
+        fi
+        if declare -F update_state >/dev/null; then
+            update_state failed update_failed_manual_recovery || true
+        fi
+    fi
+    rm -rf -- "$saved_config"
+    rmdir .platform-update-lock
+}
+trap update_cleanup EXIT
+for file in .env docker-compose.prod.yml docker-compose.docker-ops.prod.yml docker-compose.sqlserver-tls.yml; do
+    [ ! -f "$file" ] || cp -p "$file" "$saved_config/$file"
+done
 
 echo "=== DunckOps Platform Update ==="
 echo ""
@@ -26,12 +52,27 @@ for port_key in WEB_PORT API_PORT LOCAL_MINIO_API_PORT LOCAL_MINIO_CONSOLE_PORT;
     unset "$port_key"
 done
 DOCKER_OPS_FILE="docker-compose.docker-ops.prod.yml"
-BASE_URL="${DUNCKOPS_BASE_URL:-https://get.dunckops.com}"
+if [ "$#" -eq 2 ] && [ "$1" = --version ]; then
+    TARGET_VERSION="$2"
+elif [ "$#" -eq 0 ]; then
+    TARGET_VERSION="$(curl --proto '=https' --tlsv1.2 -fsS --max-time 20 https://get.dunckops.com/version.json | sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([0-9]*\.[0-9]*\.[0-9]*\)".*/\1/p')"
+else
+    echo 'Usage: update.sh [--version X.Y.Z]'; exit 1
+fi
+[[ "$TARGET_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'ERROR: invalid release version.'; exit 1; }
+BASE_URL="https://raw.githubusercontent.com/dunck01/projects-db-pitr/v${TARGET_VERSION}"
+update_state() {
+    [ -n "${UPDATE_STATUS_FILE:-}" ] || return 0
+    printf '{"operationId":"%s","targetVersion":"%s","state":"%s","code":"%s"}\n' \
+        "$UPDATE_OPERATION_ID" "$TARGET_VERSION" "$1" "$2" > "$UPDATE_STATUS_FILE.new"
+    mv "$UPDATE_STATUS_FILE.new" "$UPDATE_STATUS_FILE"
+}
 
 COMPOSE_ARGS="-f $COMPOSE_FILE"
 if [ -f "$DOCKER_OPS_FILE" ]; then
     COMPOSE_ARGS="$COMPOSE_ARGS -f $DOCKER_OPS_FILE"
 fi
+install_compose() { docker compose $COMPOSE_ARGS "$@"; }
 
 pull_managed_images() {
     local config timeout runtime_overrides snapshot_overrides engine image key value multi sql restore_pull service override_key
@@ -193,9 +234,10 @@ download_file() {
     local output_path="$2"
 
     mkdir -p "$(dirname "$output_path")"
+    case "$remote_path" in scripts/*) remote_path="infra/$remote_path" ;; esac
 
     if command -v curl &> /dev/null; then
-        curl -fsSL "${BASE_URL}/${remote_path}" -o "$output_path"
+        curl --proto '=https' --tlsv1.2 -fsS --max-time 60 "${BASE_URL}/${remote_path}" -o "$output_path"
     elif command -v wget &> /dev/null; then
         wget -q "${BASE_URL}/${remote_path}" -O "$output_path"
     else
@@ -211,6 +253,7 @@ download_postgres_build_assets() {
 }
 
 echo "Creating pre-update backup..."
+update_state backup backup_running
 command -v curl >/dev/null 2>&1 || { echo "ERRO: instale curl para validar prontidao local; servicos nao foram interrompidos."; exit 1; }
 # Published installations may not yet contain this helper. Fetch before downtime.
 download_file "scripts/install-ports.sh" "scripts/install-ports.sh.new"
@@ -231,6 +274,23 @@ done
 configure_install_minio_endpoint "$port_environment"
 "$SCRIPT_DIR/backup-before-update.sh"
 
+# Only replace the release pin; never source .env or rewrite secret values.
+old_version="$(docker compose $COMPOSE_ARGS config --environment | sed -n 's/^DUNCKOPS_VERSION=//p')"
+[[ "$old_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'ERROR: invalid installed version.'; exit 1; }
+[ "$(printf '%s\n' "$old_version" "$TARGET_VERSION" | sort -V | head -n 1)" = "$old_version" ] && [ "$old_version" != "$TARGET_VERSION" ] || {
+    echo 'ERROR: target must be newer than installed release.'; exit 1;
+}
+pin_file="$(mktemp .env.update.XXXXXX)"
+awk -v version="$TARGET_VERSION" '
+    /^[[:space:]]*DUNCKOPS_VERSION[[:space:]]*=/ { if (!found++) print "DUNCKOPS_VERSION=" version; next }
+    { print }
+    END { if (!found) print "DUNCKOPS_VERSION=" version }
+' .env > "$pin_file"
+chmod --reference=.env "$pin_file"
+chown --reference=.env "$pin_file"
+mv "$pin_file" .env
+unset DUNCKOPS_VERSION
+
 echo "Downloading current Compose files..."
 download_file "$COMPOSE_FILE" "$COMPOSE_FILE.new"
 download_file "$DOCKER_OPS_FILE" "$DOCKER_OPS_FILE.new"
@@ -244,12 +304,30 @@ source scripts/sqlserver-profile.sh
 configure_sqlserver_profile || { echo "ERRO: perfil SQL invalido; nenhum restart executado."; exit 1; }
 
 echo "Pulling pinned release images..."
+update_state pulling pulling_images
 pull_managed_images
+for service in api worker web docker-agent; do
+    image="$(docker compose $COMPOSE_ARGS config --images "$service")"
+    [ "$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.version"}}' "$image")" = "$TARGET_VERSION" ] || {
+        echo 'ERROR: pulled platform image does not match the approved release. No services restarted.'; exit 1;
+    }
+done
 
 echo "Restarting services..."
-docker compose $COMPOSE_ARGS down
-COMPOSE_PROFILES= docker compose $COMPOSE_ARGS up -d
+update_state restarting restarting_platform
+restarting=true
+# Do not stop PostgreSQL, MinIO, or customer database containers.
+COMPOSE_PROFILES= docker compose $COMPOSE_ARGS up -d --no-deps api docker-agent
 wait_install_ready
+COMPOSE_PROFILES= docker compose $COMPOSE_ARGS up -d --no-deps worker web
+wait_install_ready
+for service in api worker web docker-agent; do
+    container="$(docker compose $COMPOSE_ARGS ps -q "$service")"
+    [ -n "$container" ]
+    [ "$(docker inspect --format '{{.State.Running}}' "$container")" = true ]
+    image="$(docker inspect --format '{{.Image}}' "$container")"
+    [ "$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.version"}}' "$image")" = "$TARGET_VERSION" ]
+done
 
 download_file "scripts/update.sh" "scripts/update.sh.new"
 download_file "scripts/rollback.sh" "scripts/rollback.sh.new"
@@ -261,6 +339,7 @@ done
 
 echo ""
 echo "=== Update Complete ==="
+update_state completed release_verified
 echo ""
 echo "Check status: docker compose $COMPOSE_ARGS ps"
 echo "View logs:    docker compose $COMPOSE_ARGS logs -f"

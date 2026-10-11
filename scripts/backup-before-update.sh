@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
+umask 077
 
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-if [ -f "$SCRIPT_DIR/../docker-compose.prod.yml" ]; then
+if [ "${DUNCKOPS_UPDATE_INSTALL_ROOT:-}" = /opt/dunckops ]; then
+    PROJECT_DIR=/opt/dunckops
+elif [ -f "$SCRIPT_DIR/../docker-compose.prod.yml" ]; then
     PROJECT_DIR="$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)"
 else
     PROJECT_DIR="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
