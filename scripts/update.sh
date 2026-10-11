@@ -60,7 +60,7 @@ else
     echo 'Usage: update.sh [--version X.Y.Z]'; exit 1
 fi
 [[ "$TARGET_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'ERROR: invalid release version.'; exit 1; }
-BASE_URL="https://raw.githubusercontent.com/dunck01/projects-db-pitr/v${TARGET_VERSION}"
+BASE_URL="https://get.dunckops.com/releases/v${TARGET_VERSION}"
 update_state() {
     [ -n "${UPDATE_STATUS_FILE:-}" ] || return 0
     printf '{"operationId":"%s","targetVersion":"%s","state":"%s","code":"%s"}\n' \
