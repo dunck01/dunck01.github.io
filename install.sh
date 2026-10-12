@@ -515,15 +515,20 @@ for key in "${provisioning_keys[@]}"; do
 done
 
 if [ -z "${DUNCKOPS_VERSION:-}" ]; then
-    DUNCKOPS_VERSION="$(read_env_value DUNCKOPS_VERSION)"
+    latest_release="$(resolve_latest_release_version || true)"
+    if [ -n "$latest_release" ]; then
+        DUNCKOPS_VERSION="$latest_release"
+        echo "Release publicada mais recente detectada: $DUNCKOPS_VERSION"
+    else
+        DUNCKOPS_VERSION="$(read_env_value DUNCKOPS_VERSION)"
+        if [ -n "$DUNCKOPS_VERSION" ]; then
+            echo "Aviso: Nao foi possivel consultar version.json; mantendo versao do .env: $DUNCKOPS_VERSION"
+        fi
+    fi
 fi
 if [ -z "${DUNCKOPS_VERSION:-}" ]; then
-    DUNCKOPS_VERSION="$(resolve_latest_release_version || true)"
-    if [ -z "$DUNCKOPS_VERSION" ]; then
-        echo "ERRO: nao foi possivel detectar release publicada. Defina DUNCKOPS_VERSION=X.Y.Z e tente novamente."
-        exit 1
-    fi
-    echo "Release publicada detectada: $DUNCKOPS_VERSION"
+    echo "ERRO: nao foi possivel detectar release publicada nem versao existente no .env. Defina DUNCKOPS_VERSION=X.Y.Z e tente novamente."
+    exit 1
 fi
 if [[ ! "$DUNCKOPS_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
     echo "ERRO: DUNCKOPS_VERSION exige release X.Y.Z publicada, nunca latest."
