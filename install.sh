@@ -275,7 +275,7 @@ pull_managed_images() {
                 echo "ERRO: runtime de artefatos exige DUNCKOPS_VERSION fixada em release X.Y.Z, nunca latest."
                 return 1
             fi
-            COMPOSE_PROFILES= docker compose $COMPOSE_ARGS --profile tools pull engine-artifacts-runtime || return 1
+            COMPOSE_PROFILES= docker compose $COMPOSE_ARGS --profile tools pull engine-artifacts-runtime || echo "AVISO: engine-artifacts-runtime indisponivel para pull; continuando."
         fi
         copy_version="$(docker compose $COMPOSE_ARGS config --environment | sed -n 's/^ENGINE_COPY_RUNTIME_VERSION=//p')"
         copy_version="${copy_version:-$(docker compose $COMPOSE_ARGS config --environment | sed -n 's/^DUNCKOPS_VERSION=//p')}"
@@ -290,7 +290,7 @@ pull_managed_images() {
                 continue
             fi
             if [[ "$image" == ghcr.io/* ]]; then
-                COMPOSE_PROFILES= docker compose $COMPOSE_ARGS --profile tools pull "$service" || return 1
+                COMPOSE_PROFILES= docker compose $COMPOSE_ARGS --profile tools pull "$service" || echo "AVISO: $service indisponivel para pull; continuando."
             else
                 echo "ERRO: runtime de copia local/custom nao instalado: $image. Construa-o ou configure prefixo GHCR publicado."
                 return 1
@@ -309,7 +309,7 @@ pull_managed_images() {
                 fi
                 continue
             fi
-            COMPOSE_PROFILES= docker compose $COMPOSE_ARGS --profile tools pull "$service" || return 1
+            COMPOSE_PROFILES= docker compose $COMPOSE_ARGS --profile tools pull "$service" || echo "AVISO: $service indisponivel para pull; continuando."
         done
         if [ "$restore_pull" = true ]; then
             for engine in mysql mariadb; do
