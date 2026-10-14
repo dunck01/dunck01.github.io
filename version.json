@@ -1,4 +1,4 @@
-{
-    "version":  "0.1.129",
-    "releaseNotes":  "Enable native Oracle schema browser, query execution, sidebar filtering and pagination."
+﻿{
+    "version":  "0.1.130",
+    "releaseNotes":  "Runtime updates use immutable public versioned assets, independently of private GitHub source access."
 }
