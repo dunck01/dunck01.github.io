@@ -597,6 +597,7 @@ pull_managed_images
 echo ""
 echo "[5/5] Iniciando servicos..."
 
+docker rm -f dunckops-release-updater >/dev/null 2>&1 || true
 COMPOSE_PROFILES= docker compose $COMPOSE_ARGS up -d
 
 echo ""

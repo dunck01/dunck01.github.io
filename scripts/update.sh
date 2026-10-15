@@ -40,6 +40,10 @@ done
 echo "=== DunckOps Platform Update ==="
 echo ""
 
+if [ -z "${UPDATE_STATUS_FILE:-}" ]; then
+    docker rm -f dunckops-release-updater >/dev/null 2>&1 || true
+fi
+
 if [ ! -f .env ]; then
     echo "ERROR: .env file not found."
     echo "Run install.sh first."
@@ -352,6 +356,9 @@ done
 echo ""
 echo "=== Update Complete ==="
 update_state completed release_verified
+if [ -z "${UPDATE_STATUS_FILE:-}" ]; then
+    docker rm -f dunckops-release-updater >/dev/null 2>&1 || true
+fi
 echo ""
 echo "Check status: docker compose $COMPOSE_ARGS ps"
 echo "View logs:    docker compose $COMPOSE_ARGS logs -f"
