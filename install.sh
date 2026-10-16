@@ -238,6 +238,8 @@ pull_managed_images() {
         echo "ERRO: PHYSICAL_SNAPSHOT_TIMEOUT_MINUTES deve ser inteiro 1..120, igual na API e agent."
         return 1
     fi
+    # Optional eager preload only. Normal installations prepare engine tools on demand.
+    if [ "$(docker compose $COMPOSE_ARGS config --environment | sed -n 's/^ENGINE_RUNTIME_PRELOAD=//p')" = true ]; then
     if printf '%s\n' "$config" | grep -Eiq '"PHYSICAL_SNAPSHOTS_ENABLED": "true"'; then
         if [ ! -f "$DOCKER_OPS_FILE" ]; then
             echo "ERRO: runtimes experimentais indisponiveis. Verifique REGISTRY_OWNER/DUNCKOPS_VERSION e a publicacao de ambas as imagens; ou desative PHYSICAL_SNAPSHOTS_ENABLED. Nenhum servico foi iniciado."
@@ -323,10 +325,11 @@ pull_managed_images() {
             done
         fi
     fi
-    # Ignore inherited tools profiles: experimental images require explicit opt-in.
+    fi
+    # Ignore inherited tools profiles: engine images are prepared on demand.
     COMPOSE_PROFILES= docker compose $COMPOSE_ARGS pull
 
-    if [ -f "$DOCKER_OPS_FILE" ]; then
+    if [ -f "$DOCKER_OPS_FILE" ] && [ "$(docker compose $COMPOSE_ARGS config --environment | sed -n 's/^ENGINE_RUNTIME_PRELOAD=//p')" = true ]; then
         docker compose $COMPOSE_ARGS --profile tools pull backup-runtime
     fi
 }
