@@ -1,8 +1,27 @@
 # Operacoes Manuais Por Engine
 
-A UI `/engine-operations` envia operacoes manuais ao agent Docker local, no
-contexto da empresa autenticada. Nao e scheduler, backup S3/MinIO, failover
-automatico ou garantia geral de recuperacao. PostgreSQL segue seu fluxo existente.
+A UI `/engine-operations` executa operacoes nativas no contexto da empresa
+autenticada. Capturas (`physical-snapshot`, `snapshot`, `fullsnapshot`) usam
+jobs duraveis, catalogo e publicacao criptografada no storage configurado na
+origem registrada. A captura so conclui apos a publicacao; `native_completed`
+nao comprova publicacao remota. As demais operacoes mantem seus fluxos nativos.
+Nao implica failover automatico nem garantia geral de recuperacao. PostgreSQL
+segue seu fluxo existente.
+
+## Captura e recuperacao remota
+
+- Registrar a origem em `/api/v1/engine-sources`, com storage do mesmo projeto.
+- Informar o ID Docker canonico da origem; SQL Server tambem vincula o banco.
+- A UI submete a captura a `/api/v1/engine-jobs/`, com `publishRemote=true`, e
+  acompanha o job. Fechar a pagina ou atingir o limite de espera nao cancela o job.
+- Falha de publicacao nao autoriza repetir a captura; retomar a publicacao do
+  mesmo job preserva identidade e evita duplicacao de efeitos nativos.
+- Recuperacao explicita de replica sempre le e autentica a replica selecionada,
+  mesmo se os artefatos locais ja existirem. Presenca local nao comprova storage.
+- Publicacao/recuperacao de arquivos nao certifica restore: executar recuperacao
+  nativa isolada e comparar dados antes de aprovar recuperabilidade.
+- O fluxo classico de backups ainda nao integra o catalogo nativo. Nao executar
+  previews com placeholders nem interpretar registros legados como evidencias.
 
 - [MySQL/MariaDB](mysql-operations.md): perfis MySQL 8.4.11 e MariaDB 11.4.13
   ensaiados com restore, binlogs/PITR e standby; somente dentro dos limites descritos.
