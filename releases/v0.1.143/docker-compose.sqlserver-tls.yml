@@ -1,0 +1,40 @@
+# Optional operator-provisioned SQL profile. Never creates cert/key/backup volumes.
+services:
+  api:
+    environment: &sql-public-trust
+      SSL_CERT_FILE: /etc/dunckops/sqlserver-trust/ca-bundle.pem
+      SQLSERVER_PROVISIONING_COMPANY_ID: ${SQLSERVER_PROVISIONING_COMPANY_ID:?SQL profile company required}
+      SQLSERVER_PROVISIONING_TLS_HOSTNAME: ${SQLSERVER_PROVISIONING_TLS_HOSTNAME:?SQL certificate DNS identity required}
+    volumes:
+      - type: volume
+        source: sqlserver-public-trust
+        target: /etc/dunckops/sqlserver-trust
+        read_only: true
+        volume:
+          nocopy: true
+  worker:
+    environment: *sql-public-trust
+    volumes:
+      - type: volume
+        source: sqlserver-public-trust
+        target: /etc/dunckops/sqlserver-trust
+        read_only: true
+        volume:
+          nocopy: true
+  docker-agent:
+    environment:
+      <<: *sql-public-trust
+      SQLSERVER_PROVISIONING_TLS_VOLUME: ${SQLSERVER_PROVISIONING_TLS_VOLUME:?SQL server certificate volume required}
+      SQLSERVER_PROVISIONING_TRUST_VOLUME: ${SQLSERVER_PROVISIONING_TRUST_VOLUME:?SQL public CA volume required}
+      SQLSERVER_PROVISIONING_CA_SHA256: ${SQLSERVER_PROVISIONING_CA_SHA256:?Pinned SQL root certificate SHA256 required}
+    volumes:
+      - type: volume
+        source: sqlserver-public-trust
+        target: /etc/dunckops/sqlserver-trust
+        read_only: true
+        volume:
+          nocopy: true
+volumes:
+  sqlserver-public-trust:
+    external: true
+    name: ${SQLSERVER_PROVISIONING_TRUST_VOLUME:?SQL public CA volume required}
