@@ -30,8 +30,8 @@ nor build announces global production readiness. Never start the tools profile a
 database provisioning; operational containers remain agent-owned.
 
 Build: `docker build -f Dockerfile.mongo-operations-runtime -t dunckops-mongo-operations-runtime:development .`.
-Base image is official MongoDB Community `8.0.12`, digest-pinned. Database Tools
-`100.12.2` are checked during build; PyMongo `4.13.2` and dnspython `2.8.0` are pinned.
+Base image is official MongoDB Community `8.2.12`, digest-pinned. Database Tools
+`100.17.0` are checked during build; PyMongo `4.13.2` and dnspython `2.8.0` are pinned.
 Operator must evaluate MongoDB Community/SSPL and dependency license terms before
 deployment. This slice neither accepts interactive license terms nor claims a
 commercial MongoDB license.
@@ -121,8 +121,8 @@ an explicitly named unsharded replica set is mandatory. Mongos, config servers,
 Swarm/Kubernetes, host/container networking, privileged sources, remote-driver
 volumes, arbitrary bind mounts, alternative datadirs and source tmpfs are rejected.
 
-Image must have an official `mongo:8.0.x` tag and official repository digest.
-Authenticated driver preflight checks actual server version, stable FCV `8.0`,
+Image must have an official `mongo:8.0.x` or `mongo:8.2.x` tag and official repository digest.
+Authenticated driver preflight checks actual server version (`8.0.x`/`8.2.x`), matching stable FCV,
 authorization enabled, `/data/db`, replica set configuration/status and rollback ID.
 The datadir must be an explicitly declared writable local named volume without
 driver options; optional `/data/configdb` is the only other allowed local volume
@@ -133,7 +133,7 @@ this slice supports SCRAM credentials against `admin`, local port `27017` only.
 
 Source account needs backup/read-oplog and cluster-monitor/config-read privileges,
 plus explicit `find` on `local.system.rollback.id`. Even built-in `root` does not
-grant this system-collection read in MongoDB 8.0. Provision a narrow custom role
+grant this system-collection read in MongoDB 8.x. Provision a narrow custom role
 with resource `{db:"local",collection:"system.rollback.id"}`, action `find`.
 Standby also requires `replSetReconfig`. Provisioning privileges is an operator
 task, never silently performed by the runtime. Credentials are supplied via Docker
