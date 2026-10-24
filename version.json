@@ -1,4 +1,4 @@
 ﻿{
-    "version":  "0.1.147",
+    "version":  "0.1.148",
     "releaseNotes":  "Runtime updates use immutable public versioned assets, independently of private GitHub source access."
 }
