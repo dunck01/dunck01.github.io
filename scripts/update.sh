@@ -171,7 +171,7 @@ pull_managed_images() {
                 echo "ERRO: runtime de artefatos exige DUNCKOPS_VERSION fixada em release X.Y.Z, nunca latest."
                 return 1
             fi
-            COMPOSE_PROFILES= docker compose $COMPOSE_ARGS --profile tools pull engine-artifacts-runtime || echo "AVISO: engine-artifacts-runtime indisponivel para pull; continuando."
+            COMPOSE_PROFILES= docker compose $COMPOSE_ARGS --profile tools pull engine-artifacts-runtime || { echo "ERRO: engine-artifacts-runtime indisponivel; atualizacao interrompida antes de reiniciar servicos."; return 1; }
         fi
         copy_version="$(docker compose $COMPOSE_ARGS config --environment | sed -n 's/^ENGINE_COPY_RUNTIME_VERSION=//p')"
         copy_version="${copy_version:-$(docker compose $COMPOSE_ARGS config --environment | sed -n 's/^DUNCKOPS_VERSION=//p')}"
@@ -186,7 +186,7 @@ pull_managed_images() {
                 continue
             fi
             if [[ "$image" == ghcr.io/* ]]; then
-                COMPOSE_PROFILES= docker compose $COMPOSE_ARGS --profile tools pull "$service" || echo "AVISO: $service indisponivel para pull; continuando."
+                COMPOSE_PROFILES= docker compose $COMPOSE_ARGS --profile tools pull "$service" || { echo "ERRO: $service indisponivel; atualizacao interrompida antes de reiniciar servicos."; return 1; }
             else
                 echo "ERRO: runtime de copia local/custom nao instalado: $image. Construa-o ou configure prefixo GHCR publicado."
                 return 1
@@ -205,7 +205,7 @@ pull_managed_images() {
                 fi
                 continue
             fi
-            COMPOSE_PROFILES= docker compose $COMPOSE_ARGS --profile tools pull "$service" || echo "AVISO: $service indisponivel para pull; continuando."
+            COMPOSE_PROFILES= docker compose $COMPOSE_ARGS --profile tools pull "$service" || { echo "ERRO: $service indisponivel; atualizacao interrompida antes de reiniciar servicos."; return 1; }
         done
         if [ "$restore_pull" = true ]; then
             for engine in mysql mariadb; do
@@ -213,7 +213,7 @@ pull_managed_images() {
                 docker image inspect -- "$image" > /dev/null 2>&1 && continue
                 COMPOSE_PROFILES= docker compose $COMPOSE_ARGS --profile tools pull "${engine}-restore-server" || return 1
             done
-            for image in mysql:8.0 mysql:8.4 mariadb:10.11 mariadb:11.4 mongo:6.0 mongo:7.0 mongo:8.0; do
+            for image in mysql:8.0 mysql:8.4.11 mariadb:10.11 mariadb:11.4.13 mongo:6.0 mongo:7.0 mongo:8.0 mongo:8.2; do
                 docker image inspect -- "$image" > /dev/null 2>&1 && continue
                 docker pull "$image" || return 1
             done
