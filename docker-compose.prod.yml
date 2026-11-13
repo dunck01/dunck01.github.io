@@ -22,7 +22,7 @@ services:
 
   minio:
     container_name: dunckops-minio
-    image: cgr.dev/chainguard/minio@sha256:4692462f35d97d7e82c30371d82f057703c5d9489bcae726010594c812f2d285
+    image: ${DUNCKOPS_MINIO_IMAGE:-cgr.dev/chainguard/minio@sha256:4692462f35d97d7e82c30371d82f057703c5d9489bcae726010594c812f2d285}
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${LOCAL_MINIO_ACCESS_KEY:?LOCAL_MINIO_ACCESS_KEY is required}
@@ -30,15 +30,15 @@ services:
     volumes:
       - dunckops-minio-data:/data
     ports:
-      - "${LOCAL_MINIO_API_PORT:-9002}:9000"
-      - "${LOCAL_MINIO_CONSOLE_PORT:-9001}:9001"
+      - "${LOCAL_MINIO_API_PORT:-127.0.0.1:9002}:9000"
+      - "${LOCAL_MINIO_CONSOLE_PORT:-127.0.0.1:9001}:9001"
     labels:
       dunckops.managed: "true"
     restart: unless-stopped
 
   minio-init:
     container_name: dunckops-minio-init
-    image: cgr.dev/chainguard/minio-client@sha256:a552f9a01603b3db647712ae056e8bb4c04800365707f5bd4abffa05c9e4198e
+    image: ${DUNCKOPS_MINIO_CLIENT_IMAGE:-cgr.dev/chainguard/minio-client@sha256:a552f9a01603b3db647712ae056e8bb4c04800365707f5bd4abffa05c9e4198e}
     depends_on:
       minio:
         condition: service_started
@@ -76,6 +76,7 @@ services:
       DOCKER_ALLOW_ANY_CONTAINER: ${DOCKER_ALLOW_ANY_CONTAINER:-false}
       DOCKER_AGENT_URL: ${DOCKER_AGENT_URL:-http://docker-agent:8080}
       DOCKER_AGENT_KEY: ${DOCKER_AGENT_KEY:?DOCKER_AGENT_KEY is required}
+      SSH_ONBOARDING_ALLOWED_HOSTS: ${SSH_ONBOARDING_ALLOWED_HOSTS:-}
       DOCKER_AGENT_TIMEOUT_MINUTES: ${DOCKER_AGENT_TIMEOUT_MINUTES:-720}
       PHYSICAL_SNAPSHOTS_ENABLED: ${PHYSICAL_SNAPSHOTS_ENABLED:-false}
       PHYSICAL_SNAPSHOT_TIMEOUT_MINUTES: ${PHYSICAL_SNAPSHOT_TIMEOUT_MINUTES:-60}

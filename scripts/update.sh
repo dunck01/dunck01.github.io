@@ -284,8 +284,8 @@ for port_key in WEB_PORT API_PORT LOCAL_MINIO_API_PORT LOCAL_MINIO_CONSOLE_PORT;
     case "$port_key" in
         WEB_PORT) port_value="${port_value:-9000}" ;;
         API_PORT) port_value="${port_value:-9100}" ;;
-        LOCAL_MINIO_API_PORT) port_value="${port_value:-9002}" ;;
-        LOCAL_MINIO_CONSOLE_PORT) port_value="${port_value:-9001}" ;;
+        LOCAL_MINIO_API_PORT) port_value="${port_value:-127.0.0.1:9002}" ;;
+        LOCAL_MINIO_CONSOLE_PORT) port_value="${port_value:-127.0.0.1:9001}" ;;
     esac
     parse_install_binding "$port_value"
     export "$port_key=$port_value"

@@ -59,7 +59,7 @@ detect_install_access_host() {
 configure_install_ports() {
     command -v curl >/dev/null 2>&1 || { echo "ERRO: instale curl para validar prontidao HTTP local antes de iniciar servicos."; return 1; }
     local keys=(WEB_PORT API_PORT LOCAL_MINIO_API_PORT LOCAL_MINIO_CONSOLE_PORT)
-    local defaults=(9000 9100 9002 9001) services=(web api minio minio) targets=(80 8080 9000 9001)
+    local defaults=(9000 9100 127.0.0.1:9002 127.0.0.1:9001) services=(web api minio minio) targets=(80 8080 9000 9001)
     local -a values hosts ports explicit order
     local environment project sockets sockets_v6 rows="" id key value i j candidate busy host port target service directory owner socket endpoint own hint
     environment="$(install_compose config --environment)" || return 1
@@ -137,7 +137,9 @@ configure_install_ports() {
                 return 1
             fi
             (( candidate <= 65535 )) || return 1
-            values[i]="$candidate"; ports[i]="$candidate"; candidate=$((candidate+1))
+            # Keep the default host (e.g. MinIO loopback) when relocating an implicit port.
+            if [ "${hosts[i]}" = 0.0.0.0 ]; then values[i]="$candidate"; else values[i]="${hosts[i]}:$candidate"; fi
+            ports[i]="$candidate"; candidate=$((candidate+1))
         done
     done
     # Validate addresses with Compose before persisting anything.

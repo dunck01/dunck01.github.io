@@ -11,7 +11,7 @@ echo ""
 REGISTRY_OWNER="${REGISTRY_OWNER:-dunck01}"
 BASE_URL="${DUNCKOPS_BASE_URL:-https://get.dunckops.com}"
 COMMERCIAL_PUBLIC_KEY_URL="${DUNCKOPS_COMMERCIAL_PUBLIC_KEY_URL:-https://api.dunckops.com/license-public.pem}"
-DEFAULT_DB_PASSWORD="${DUNCKOPS_DEFAULT_DB_PASSWORD:-pitr-local}"
+LEGACY_DB_PASSWORD="pitr-local"
 INSTALL_DIR="${DUNCKOPS_INSTALL_DIR:-/opt/dunckops}"
 DEFAULT_INSTALLATION_NAME="${DUNCKOPS_INSTALLATION_NAME:-$(hostname 2> /dev/null || echo dunckops-vps)}"
 DEFAULT_LICENSE_PUBLIC_KEY='-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzgcIq8VPzkF8RSN2S4Lt\nFT+SKD10mKci8TrBOLx36LAx3kW+afo+rZKZMEoUDyFnMI9qZwmLXDuDFvvmcSq6\nv7wg7UgoB638FxMc9ByncnZP6I7JbjzwLDP04xFCgKlVbYfvDhUQQLhCfewGB1Ua\nYOslsF5BnPoFk0lK+MtONbflwDrsyY7re3chTPyIgHOtDicDFuroySON1seuMx8c\nuTAUOIreQRuBnUT4jck8fdZ45AsfB7u4cW5rU94jEAB/MEz2rXV6McSlBCt3ZgaO\nmLnmqGuPoTPUcT8BytEi6I1YrBccj9Gyu3xNRfJPjWM2STI/TW4qXGDaH402daNN\nEQIDAQAB\n-----END PUBLIC KEY-----'
@@ -58,6 +58,18 @@ random_secret() {
         openssl rand -hex 32
     else
         od -An -N32 -tx1 /dev/urandom | tr -d ' \n'
+    fi
+}
+
+# Fresh installs get a random DB password. A pre-existing Postgres volume was
+# initialized with the legacy default, so keep it to avoid locking the API out.
+new_db_password() {
+    if [ -n "${DUNCKOPS_DEFAULT_DB_PASSWORD:-}" ]; then
+        printf '%s' "$DUNCKOPS_DEFAULT_DB_PASSWORD"
+    elif docker volume ls -q 2>/dev/null | grep -q 'dunckops-db-data$'; then
+        printf '%s' "$LEGACY_DB_PASSWORD"
+    else
+        random_secret
     fi
 }
 
@@ -473,7 +485,7 @@ if [ ! -f .env ]; then
     echo ""
     echo "Aplicando valores no .env..."
 
-    set_env_value "DUNCKOPS_DB_PASSWORD" "$DEFAULT_DB_PASSWORD"
+    set_env_value "DUNCKOPS_DB_PASSWORD" "$(new_db_password)"
     set_env_value "LOCAL_MINIO_ACCESS_KEY" "$minio_access_key"
     set_env_value "LOCAL_MINIO_SECRET_KEY" "$minio_secret_key"
     set_env_value "Encryption__MasterKey" "$enc_key"
@@ -566,7 +578,8 @@ export INSTALLATION_FINGERPRINT="$fingerprint" Installation__Fingerprint="$finge
 export DUNCKOPS_SETUP_TOKEN="$setup_token" Setup__Token="$setup_token"
 
 if ! grep -q "^DUNCKOPS_DB_PASSWORD=" .env; then
-    set_env_value "DUNCKOPS_DB_PASSWORD" "$DEFAULT_DB_PASSWORD"
+    # Existing .env from an older release: its volume used the legacy default.
+    set_env_value "DUNCKOPS_DB_PASSWORD" "${DUNCKOPS_DEFAULT_DB_PASSWORD:-$LEGACY_DB_PASSWORD}"
 fi
 
 if ! grep -q "^LICENSE_PUBLIC_KEY=." .env; then
