@@ -221,7 +221,24 @@ pull_managed_images() {
     fi
     fi
     # Ignore inherited tools profiles: engine images are prepared on demand.
-    COMPOSE_PROFILES= docker compose $COMPOSE_ARGS pull
+    # Offline installs pin some images to local tags (localhost/dunckops-offline/...) that no registry
+    # serves: pull only services whose image is not such a local tag already present.
+    local pull_services=() svc svc_image
+    while read -r svc svc_image; do
+        [ -n "$svc" ] || continue
+        if [[ "$svc_image" == localhost/* ]] && docker image inspect "$svc_image" > /dev/null 2>&1; then
+            echo "  $svc: imagem local $svc_image ja presente (bundle offline)."
+            continue
+        fi
+        pull_services+=("$svc")
+    done < <(COMPOSE_PROFILES= docker compose $COMPOSE_ARGS config | awk '
+        /^services:/ { in_services = 1; next }
+        in_services && /^[^ ]/ { in_services = 0 }
+        in_services && /^  [A-Za-z0-9_.-]+:$/ { service = substr($1, 1, length($1) - 1) }
+        in_services && /^    image: / { print service, $2 }')
+    if [ "${#pull_services[@]}" -gt 0 ]; then
+        COMPOSE_PROFILES= docker compose $COMPOSE_ARGS pull "${pull_services[@]}"
+    fi
 
     if [ -f "$DOCKER_OPS_FILE" ] && [ "$(docker compose $COMPOSE_ARGS config --environment | sed -n 's/^ENGINE_RUNTIME_PRELOAD=//p')" = true ]; then
         docker compose $COMPOSE_ARGS --profile tools pull backup-runtime
