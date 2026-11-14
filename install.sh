@@ -556,6 +556,18 @@ fi
 set_env_value "DUNCKOPS_VERSION" "$DUNCKOPS_VERSION"
 export DUNCKOPS_VERSION
 
+# Signed approval of this release's Docker Agent image, used to install agents on remote servers over SSH.
+# The trust anchor ships inside the API/Worker images; missing envelope only disables remote agent installation.
+mkdir -p agent-release
+if download_file "releases/v${DUNCKOPS_VERSION}/agent-release-envelope.json" "agent-release/envelope.json.new" 2> /dev/null; then
+    mv agent-release/envelope.json.new agent-release/envelope.json
+    chmod 644 agent-release/envelope.json
+else
+    rm -f agent-release/envelope.json.new agent-release/envelope.json
+    echo "Aviso: aprovacao assinada do agente remoto indisponivel para v${DUNCKOPS_VERSION}; instalacao de agentes via SSH exigira aprovacao manual."
+fi
+chmod 755 agent-release
+
 chmod 600 .env
 
 # Persisted identity wins over process environment on reinstall.

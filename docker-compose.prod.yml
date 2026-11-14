@@ -95,6 +95,12 @@ services:
       Setup__Token: ${Setup__Token:-${DUNCKOPS_SETUP_TOKEN:-}}
       DUNCKOPS_LICENSE_KEY: ${DUNCKOPS_LICENSE_KEY:-}
       LICENSE_PUBLIC_KEY: ${LICENSE_PUBLIC_KEY:-}
+      AGENT_RELEASE_ENVELOPE_PATH: ${AGENT_RELEASE_ENVELOPE_PATH:-/etc/dunckops/agent-release/envelope.json}
+      AGENT_RELEASE_TRUSTED_KEYS: ${AGENT_RELEASE_TRUSTED_KEYS:-}
+      AGENT_ALLOW_APPROVED_IMAGE_DOWNLOAD: ${AGENT_ALLOW_APPROVED_IMAGE_DOWNLOAD:-true}
+      AGENT_APPROVED_IMAGE_DIGEST: ${AGENT_APPROVED_IMAGE_DIGEST:-}
+      AGENT_APPROVED_IMAGE_ID: ${AGENT_APPROVED_IMAGE_ID:-}
+      AGENT_APPROVED_VERSION: ${AGENT_APPROVED_VERSION:-}
       DOCKER_AGENT_EXTERNAL_HOST: ${DOCKER_AGENT_EXTERNAL_HOST:-}
       MONITORING_EVENTS_SHARED_SECRET: ${MONITORING_EVENTS_SHARED_SECRET:-${Jwt__Key:?Jwt__Key is required}}
     ports:
@@ -102,6 +108,7 @@ services:
     volumes:
       - dunckops-local-backups:/backups
       - sqlserver-managed-public:/var/lib/dunckops/sql-public
+      - ./agent-release:/etc/dunckops/agent-release:ro
     labels:
       dunckops.managed: "true"
     healthcheck:
@@ -145,6 +152,12 @@ services:
       Installation__Fingerprint: ${Installation__Fingerprint:-${INSTALLATION_FINGERPRINT:-}}
       DUNCKOPS_LICENSE_KEY: ${DUNCKOPS_LICENSE_KEY:-}
       LICENSE_PUBLIC_KEY: ${LICENSE_PUBLIC_KEY:-}
+      AGENT_RELEASE_ENVELOPE_PATH: ${AGENT_RELEASE_ENVELOPE_PATH:-/etc/dunckops/agent-release/envelope.json}
+      AGENT_RELEASE_TRUSTED_KEYS: ${AGENT_RELEASE_TRUSTED_KEYS:-}
+      AGENT_ALLOW_APPROVED_IMAGE_DOWNLOAD: ${AGENT_ALLOW_APPROVED_IMAGE_DOWNLOAD:-true}
+      AGENT_APPROVED_IMAGE_DIGEST: ${AGENT_APPROVED_IMAGE_DIGEST:-}
+      AGENT_APPROVED_IMAGE_ID: ${AGENT_APPROVED_IMAGE_ID:-}
+      AGENT_APPROVED_VERSION: ${AGENT_APPROVED_VERSION:-}
       DOCKER_AGENT_EXTERNAL_HOST: ${DOCKER_AGENT_EXTERNAL_HOST:-}
       MONITORING_EVENTS_API_URL: ${MONITORING_EVENTS_API_URL:-http://api:8080}
       ENGINE_PROVISIONING_API_SHARED_NETWORK: ${ENGINE_PROVISIONING_API_SHARED_NETWORK:-true}
@@ -163,6 +176,7 @@ services:
     volumes:
       - dunckops-local-backups:/backups
       - sqlserver-managed-public:/var/lib/dunckops/sql-public
+      - ./agent-release:/etc/dunckops/agent-release:ro
     labels:
       dunckops.managed: "true"
     restart: unless-stopped

@@ -324,6 +324,16 @@ mv "$COMPOSE_FILE.new" "$COMPOSE_FILE"
 mv "$DOCKER_OPS_FILE.new" "$DOCKER_OPS_FILE"
 download_file "docker-compose.sqlserver-tls.yml" "docker-compose.sqlserver-tls.yml.new"
 mv "docker-compose.sqlserver-tls.yml.new" "docker-compose.sqlserver-tls.yml"
+# Signed approval of the target Docker Agent image (remote agents over SSH). A stale envelope is never kept.
+mkdir -p agent-release
+if download_file "agent-release-envelope.json" "agent-release/envelope.json.new" 2> /dev/null; then
+    mv agent-release/envelope.json.new agent-release/envelope.json
+    chmod 644 agent-release/envelope.json
+else
+    rm -f agent-release/envelope.json.new agent-release/envelope.json
+    echo "WARN: signed remote agent approval unavailable for v${TARGET_VERSION}; SSH agent installation will require manual approval."
+fi
+chmod 755 agent-release
 download_file "scripts/sqlserver-profile.sh" "scripts/sqlserver-profile.sh.new"
 mv "scripts/sqlserver-profile.sh.new" "scripts/sqlserver-profile.sh"
 source scripts/sqlserver-profile.sh
