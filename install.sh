@@ -506,6 +506,10 @@ else
     echo "Arquivo .env ja existe, mantendo configuracao atual."
 fi
 
+# MySQL, MariaDB and MongoDB are public engines: always enabled, also when reinstalling older setups.
+set_env_value "MULTI_ENGINE_OPERATIONS_ENABLED" "true"
+set_env_value "PHYSICAL_SNAPSHOTS_ENABLED" "true"
+
 # Validate shell overrides only; persisted values and SQL settings are resolved by Compose below.
 provisioning_keys=(MULTI_ENGINE_OPERATIONS_ENABLED ENGINE_PROVISIONING_ALLOW_IMAGE_PULL)
 for key in "${provisioning_keys[@]}"; do

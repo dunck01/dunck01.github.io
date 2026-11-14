@@ -293,7 +293,8 @@ done
 configure_install_minio_endpoint "$port_environment"
 "$SCRIPT_DIR/backup-before-update.sh"
 
-# Only replace the release pin; never source .env or rewrite secret values.
+# Only replace the release pin and public engine switches; never source .env or rewrite secret values.
+# MySQL, MariaDB and MongoDB are public engines and always enabled (migrates older installs).
 old_version="$(docker compose $COMPOSE_ARGS config --environment | sed -n 's/^DUNCKOPS_VERSION=//p')"
 [[ "$old_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'ERROR: invalid installed version.'; exit 1; }
 [ "$(printf '%s\n' "$old_version" "$TARGET_VERSION" | sort -V | head -n 1)" = "$old_version" ] && [ "$old_version" != "$TARGET_VERSION" ] || {
@@ -302,8 +303,14 @@ old_version="$(docker compose $COMPOSE_ARGS config --environment | sed -n 's/^DU
 pin_file="$(mktemp .env.update.XXXXXX)"
 awk -v version="$TARGET_VERSION" '
     /^[[:space:]]*DUNCKOPS_VERSION[[:space:]]*=/ { if (!found++) print "DUNCKOPS_VERSION=" version; next }
+    /^[[:space:]]*MULTI_ENGINE_OPERATIONS_ENABLED[[:space:]]*=/ { if (!multi++) print "MULTI_ENGINE_OPERATIONS_ENABLED=true"; next }
+    /^[[:space:]]*PHYSICAL_SNAPSHOTS_ENABLED[[:space:]]*=/ { if (!physical++) print "PHYSICAL_SNAPSHOTS_ENABLED=true"; next }
     { print }
-    END { if (!found) print "DUNCKOPS_VERSION=" version }
+    END {
+        if (!found) print "DUNCKOPS_VERSION=" version
+        if (!multi) print "MULTI_ENGINE_OPERATIONS_ENABLED=true"
+        if (!physical) print "PHYSICAL_SNAPSHOTS_ENABLED=true"
+    }
 ' .env > "$pin_file"
 chmod --reference=.env "$pin_file"
 chown --reference=.env "$pin_file"
