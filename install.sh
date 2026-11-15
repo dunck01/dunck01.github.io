@@ -238,7 +238,7 @@ pull_managed_images() {
         echo "ERRO: SQLSERVER_OPERATIONS_RUNTIME_IMAGE aceita somente ID sha256 imutavel aprovado manualmente, nunca tag."
         return 1
     fi
-    runtime_overrides="$(docker compose $COMPOSE_ARGS config --environment | sed -n '/^MULTI_ENGINE_RESTORE_SERVER_IMAGES_PULL=/p; /^MYSQL_OPERATIONS_RUNTIME_IMAGE=/p; /^MARIADB_OPERATIONS_RUNTIME_IMAGE=/p; /^MONGO_OPERATIONS_RUNTIME_IMAGE=/p; /^SQLSERVER_OPERATIONS_CLIENT_TOOLS_IMAGE=/p; /^MYSQL_RESTORE_SERVER_IMAGE=/p; /^MARIADB_RESTORE_SERVER_IMAGE=/p')"
+    runtime_overrides="$(docker compose $COMPOSE_ARGS config --environment | sed -n '/^MULTI_ENGINE_RESTORE_SERVER_IMAGES_PULL=/p; /^MYSQL_OPERATIONS_RUNTIME_IMAGE=/p; /^MARIADB_OPERATIONS_RUNTIME_IMAGE=/p; /^MONGO_OPERATIONS_RUNTIME_IMAGE=/p; /^CASSANDRA_OPERATIONS_RUNTIME_IMAGE=/p; /^SQLSERVER_OPERATIONS_CLIENT_TOOLS_IMAGE=/p; /^MYSQL_RESTORE_SERVER_IMAGE=/p; /^MARIADB_RESTORE_SERVER_IMAGE=/p')"
     restore_pull="$(printf '%s\n' "$runtime_overrides" | sed -n 's/^MULTI_ENGINE_RESTORE_SERVER_IMAGES_PULL=//p')"
     restore_pull="${restore_pull:-false}"
     if [[ "$restore_pull" != true && "$restore_pull" != false ]]; then
@@ -310,7 +310,7 @@ pull_managed_images() {
                 return 1
             fi
         done
-        for engine in mysql mariadb mongo sqlserver; do
+        for engine in mysql mariadb mongo sqlserver cassandra; do
             [ "$engine" != sqlserver ] || [ "$sql" = true ] || continue
             service="${engine}-operations-runtime"
             override_key="${engine^^}_OPERATIONS_RUNTIME_IMAGE"
