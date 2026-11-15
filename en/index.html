@@ -53,8 +53,8 @@
       </section>
       <section aria-labelledby="database-engines">
         <h2 id="database-engines">Database engines</h2>
-        <p>PostgreSQL remains the available operational engine. MySQL, MariaDB, MongoDB, and Microsoft SQL Server are on the implementation roadmap; backup, PITR, and delayed replicas are not available for these engines in this version.</p>
-        <p>All plans authorize the same engines; limits and features vary by plan. The database limit counts the combined total across engines. This authorization does not enable features that have not been implemented. The installer remains unchanged at this stage.</p>
+        <p>PostgreSQL has the established operational flow. MySQL, MariaDB, and MongoDB have experimental profiles with engine-specific capabilities and limits. Apache Cassandra 5.0 (single node) is experimental and only appears when the administrator enables <code>CASSANDRA_OPERATIONS_UNVERIFIED_OPT_IN=true</code>; Cassandra backup and PITR are not available yet. No experimental profile represents production readiness.</p>
+        <p>All plans authorize the same engines; limits and features vary by plan. The database limit counts the combined total across engines. This authorization does not enable features that have not been implemented. Apache Cassandra is a registered trademark of the Apache Software Foundation.</p>
       </section>
       <nav aria-label="Public files">
         <a href="/install.sh">install.sh</a>
