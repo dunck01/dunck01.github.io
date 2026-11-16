@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+if [ -f "$SCRIPT_DIR/../docker-compose.prod.yml" ]; then
+    PROJECT_DIR="$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)"
+else
+    PROJECT_DIR="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
+fi
+
+cd "$PROJECT_DIR"
+
+VERSION="${1:-}"
+
+if [ -z "$VERSION" ]; then
+    echo "Usage: ./rollback.sh <version>"
+    echo "Example: ./rollback.sh v1.0.0"
+    exit 1
+fi
+
+echo "=== DunckOps Platform Rollback to $VERSION ==="
+echo ""
+
+if [ ! -f .env ]; then
+    echo "ERROR: .env file not found."
+    exit 1
+fi
+
+COMPOSE_FILE="docker-compose.prod.yml"
+DOCKER_OPS_FILE="docker-compose.docker-ops.prod.yml"
+
+COMPOSE_ARGS="-f $COMPOSE_FILE"
+if [ -f "$DOCKER_OPS_FILE" ]; then
+    COMPOSE_ARGS="$COMPOSE_ARGS -f $DOCKER_OPS_FILE"
+fi
+
+echo "Stopping current services..."
+source "$SCRIPT_DIR/sqlserver-profile.sh"
+configure_sqlserver_profile || { echo "ERRO: perfil SQL invalido; nenhum restart executado."; exit 1; }
+docker compose $COMPOSE_ARGS down
+
+echo "Setting version to $VERSION..."
+export DUNCKOPS_VERSION="$VERSION"
+
+echo "Starting services with $VERSION..."
+docker compose $COMPOSE_ARGS up -d
+
+echo ""
+echo "=== Rollback Complete ==="
+echo ""
+echo "Check status: docker compose $COMPOSE_ARGS ps"
+echo "View logs:    docker compose $COMPOSE_ARGS logs -f"
+echo ""
