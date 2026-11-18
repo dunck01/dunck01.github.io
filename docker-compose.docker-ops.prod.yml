@@ -21,6 +21,8 @@ services:
     container_name: dunckops-docker-agent
     image: ghcr.io/${REGISTRY_OWNER:-dunck01}/dunckops-docker-agent:${DUNCKOPS_VERSION}
     environment:
+      # Workstation GC: ~55% less anonymous memory at idle on a small VPS (measured on the lab VM).
+      DOTNET_gcServer: "0"
       PORT: ${DOCKER_AGENT_CONTAINER_PORT:-8080}
       ASPNETCORE_ENVIRONMENT: Production
       DUNCKOPS_VERSION: ${DUNCKOPS_VERSION}
