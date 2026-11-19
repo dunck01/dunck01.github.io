@@ -191,7 +191,7 @@ wait_install_ready() {
         endpoint="$LOCAL_ENDPOINT"
         ready=false
         for ((attempt=0; attempt<30; attempt++)); do
-            if status="$(curl -q --noproxy '*' -fsS --connect-timeout 2 --max-time 3 "$endpoint$path" -o /dev/null -w '%{http_code}')" && [[ "$status" = 2[0-9][0-9] ]]; then
+            if status="$(curl -q --noproxy '*' -fs --connect-timeout 2 --max-time 3 "$endpoint$path" -o /dev/null -w '%{http_code}')" && [[ "$status" = 2[0-9][0-9] ]]; then
                 ready=true
                 break
             fi

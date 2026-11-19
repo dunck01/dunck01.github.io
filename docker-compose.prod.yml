@@ -56,6 +56,19 @@ services:
       dunckops.managed: "true"
     restart: "no"
 
+  backups-init:
+    container_name: dunckops-backups-init
+    image: ghcr.io/${REGISTRY_OWNER:-dunck01}/dunckops-api:${DUNCKOPS_VERSION}
+    # API/worker run as uid 1001 and write "Local disk / NAS" objects at the volume root.
+    # Only the top directory changes owner; root-squashed NFS keeps its owner (the installer already checked writes).
+    user: "0:0"
+    entrypoint: ["sh", "-c", "chown 1001:1001 /backups || true"]
+    volumes:
+      - dunckops-local-backups:/backups
+    labels:
+      dunckops.managed: "true"
+    restart: "no"
+
   api:
     container_name: dunckops-api
     image: ghcr.io/${REGISTRY_OWNER:-dunck01}/dunckops-api:${DUNCKOPS_VERSION}
@@ -83,11 +96,10 @@ services:
       PHYSICAL_SNAPSHOTS_ENABLED: ${PHYSICAL_SNAPSHOTS_ENABLED:-true}
       PHYSICAL_SNAPSHOT_TIMEOUT_MINUTES: ${PHYSICAL_SNAPSHOT_TIMEOUT_MINUTES:-60}
       MULTI_ENGINE_OPERATIONS_ENABLED: ${MULTI_ENGINE_OPERATIONS_ENABLED:-true}
+      # shortcut: inert values read only by updaters <= 0.1.181 before they replace themselves; drop with that release line.
+      SQLSERVER_OPERATIONS_UNVERIFIED_OPT_IN: "false"
+      SQLSERVER_OPERATIONS_TIMEOUT_SECONDS: "1800"
       ENGINE_PROVISIONING_API_SHARED_NETWORK: ${ENGINE_PROVISIONING_API_SHARED_NETWORK:-true}
-      SQLSERVER_OPERATIONS_UNVERIFIED_OPT_IN: ${SQLSERVER_OPERATIONS_UNVERIFIED_OPT_IN:-false}
-      ORACLE_OPERATIONS_UNVERIFIED_OPT_IN: ${ORACLE_OPERATIONS_UNVERIFIED_OPT_IN:-false}
-      SQLSERVER_OPERATIONS_TIMEOUT_SECONDS: ${SQLSERVER_OPERATIONS_TIMEOUT_SECONDS:-1800}
-      SQLSERVER_PUBLIC_CERTIFICATE_DIRECTORY: /var/lib/dunckops/sql-public
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:9000}
       VITE_COMMERCIAL_API_URL: ${VITE_COMMERCIAL_API_URL:-}
       CommercialAuth__ApiUrl: ${CommercialAuth__ApiUrl:-}
@@ -109,7 +121,6 @@ services:
       - "${API_PORT:-9100}:8080"
     volumes:
       - dunckops-local-backups:/backups
-      - sqlserver-managed-public:/var/lib/dunckops/sql-public
       - ./agent-release:/etc/dunckops/agent-release:ro
     labels:
       dunckops.managed: "true"
@@ -126,6 +137,8 @@ services:
       minio:
         condition: service_started
       minio-init:
+        condition: service_completed_successfully
+      backups-init:
         condition: service_completed_successfully
 
   worker:
@@ -166,12 +179,9 @@ services:
       MONITORING_EVENTS_API_URL: ${MONITORING_EVENTS_API_URL:-http://api:8080}
       ENGINE_PROVISIONING_API_SHARED_NETWORK: ${ENGINE_PROVISIONING_API_SHARED_NETWORK:-true}
       MONITORING_EVENTS_SHARED_SECRET: ${MONITORING_EVENTS_SHARED_SECRET:-${Jwt__Key:?Jwt__Key is required}}
-      SQLSERVER_PUBLIC_CERTIFICATE_DIRECTORY: /var/lib/dunckops/sql-public
       MULTI_ENGINE_OPERATIONS_ENABLED: ${MULTI_ENGINE_OPERATIONS_ENABLED:-true}
       PHYSICAL_SNAPSHOTS_ENABLED: ${PHYSICAL_SNAPSHOTS_ENABLED:-true}
       PHYSICAL_SNAPSHOT_TIMEOUT_MINUTES: ${PHYSICAL_SNAPSHOT_TIMEOUT_MINUTES:-60}
-      SQLSERVER_OPERATIONS_UNVERIFIED_OPT_IN: ${SQLSERVER_OPERATIONS_UNVERIFIED_OPT_IN:-false}
-      ORACLE_OPERATIONS_UNVERIFIED_OPT_IN: ${ORACLE_OPERATIONS_UNVERIFIED_OPT_IN:-false}
     depends_on:
       dunckops-db:
         condition: service_healthy
@@ -179,7 +189,6 @@ services:
         condition: service_healthy
     volumes:
       - dunckops-local-backups:/backups
-      - sqlserver-managed-public:/var/lib/dunckops/sql-public
       - ./agent-release:/etc/dunckops/agent-release:ro
     labels:
       dunckops.managed: "true"
@@ -198,7 +207,6 @@ services:
     restart: unless-stopped
 
 volumes:
-  sqlserver-managed-public:
   dunckops-db-data:
     name: dunckops-db-data
     labels:

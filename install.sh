@@ -168,7 +168,6 @@ download_postgres_build_assets() {
 }
 
 download_support_scripts() {
-    download_file "scripts/sqlserver-profile.sh" "scripts/sqlserver-profile.sh"
     download_file "scripts/install-ports.sh" "scripts/install-ports.sh"
     download_file "scripts/update.sh" "scripts/update.sh"
     chmod +x "scripts/update.sh"
@@ -217,7 +216,7 @@ pull_managed_images() {
         echo "ERRO: DUNCKOPS_VERSION exige release X.Y.Z publicada; nunca latest. Nenhum pull ou startup executado."
         return 1
     fi
-    for key in PHYSICAL_SNAPSHOTS_ENABLED MULTI_ENGINE_OPERATIONS_ENABLED SQLSERVER_OPERATIONS_UNVERIFIED_OPT_IN; do
+    for key in PHYSICAL_SNAPSHOTS_ENABLED MULTI_ENGINE_OPERATIONS_ENABLED; do
         value="$(printf '%s\n' "$config" | sed -n "s/.*\"$key\": \"\([^\"]*\)\".*/\1/p" | sort -u)"
         if [[ "$value" != true && "$value" != false ]]; then
             echo "ERRO: $key deve ser true ou false, igual na API e agent."
@@ -225,20 +224,9 @@ pull_managed_images() {
         fi
         case "$key" in
             MULTI_ENGINE_OPERATIONS_ENABLED) multi="$value" ;;
-            SQLSERVER_OPERATIONS_UNVERIFIED_OPT_IN) sql="$value" ;;
         esac
     done
-    timeout="$(printf '%s\n' "$config" | sed -n 's/.*"SQLSERVER_OPERATIONS_TIMEOUT_SECONDS": "\([^"]*\)".*/\1/p' | sort -u)"
-    if [[ ! "$timeout" =~ ^[1-9][0-9]{1,3}$ ]] || (( timeout < 60 || timeout > 7200 )); then
-        echo "ERRO: SQLSERVER_OPERATIONS_TIMEOUT_SECONDS deve ser inteiro 60..7200, igual na API e agent."
-        return 1
-    fi
-    image="$(printf '%s\n' "$config" | sed -n 's/.*"SQLSERVER_OPERATIONS_RUNTIME_IMAGE": "\([^"]*\)".*/\1/p' | sort -u)"
-    if [ -n "$image" ] && [[ ! "$image" =~ ^sha256:[a-f0-9]{64}$ ]]; then
-        echo "ERRO: SQLSERVER_OPERATIONS_RUNTIME_IMAGE aceita somente ID sha256 imutavel aprovado manualmente, nunca tag."
-        return 1
-    fi
-    runtime_overrides="$(docker compose $COMPOSE_ARGS config --environment | sed -n '/^MULTI_ENGINE_RESTORE_SERVER_IMAGES_PULL=/p; /^MYSQL_OPERATIONS_RUNTIME_IMAGE=/p; /^MARIADB_OPERATIONS_RUNTIME_IMAGE=/p; /^MONGO_OPERATIONS_RUNTIME_IMAGE=/p; /^CASSANDRA_OPERATIONS_RUNTIME_IMAGE=/p; /^SQLSERVER_OPERATIONS_CLIENT_TOOLS_IMAGE=/p; /^MYSQL_RESTORE_SERVER_IMAGE=/p; /^MARIADB_RESTORE_SERVER_IMAGE=/p')"
+    runtime_overrides="$(docker compose $COMPOSE_ARGS config --environment | sed -n '/^MULTI_ENGINE_RESTORE_SERVER_IMAGES_PULL=/p; /^MYSQL_OPERATIONS_RUNTIME_IMAGE=/p; /^MARIADB_OPERATIONS_RUNTIME_IMAGE=/p; /^MONGO_OPERATIONS_RUNTIME_IMAGE=/p; /^CASSANDRA_OPERATIONS_RUNTIME_IMAGE=/p; /^MYSQL_RESTORE_SERVER_IMAGE=/p; /^MARIADB_RESTORE_SERVER_IMAGE=/p')"
     restore_pull="$(printf '%s\n' "$runtime_overrides" | sed -n 's/^MULTI_ENGINE_RESTORE_SERVER_IMAGES_PULL=//p')"
     restore_pull="${restore_pull:-false}"
     if [[ "$restore_pull" != true && "$restore_pull" != false ]]; then
@@ -310,11 +298,9 @@ pull_managed_images() {
                 return 1
             fi
         done
-        for engine in mysql mariadb mongo sqlserver cassandra; do
-            [ "$engine" != sqlserver ] || [ "$sql" = true ] || continue
+        for engine in mysql mariadb mongo cassandra; do
             service="${engine}-operations-runtime"
             override_key="${engine^^}_OPERATIONS_RUNTIME_IMAGE"
-            [ "$engine" != sqlserver ] || override_key=SQLSERVER_OPERATIONS_CLIENT_TOOLS_IMAGE
             image="$(printf '%s\n' "$runtime_overrides" | sed -n "s/^${override_key}=//p")"
             if [ -n "$image" ]; then
                 if ! docker image inspect -- "$image" > /dev/null 2>&1; then
@@ -465,7 +451,7 @@ DOCKER_OPS_FILE="docker-compose.docker-ops.prod.yml"
 ENV_EXAMPLE=".env.production.example"
 REMOTE_ENV_EXAMPLE="env.production.example"
 
-for filename in "$COMPOSE_FILE" "$DOCKER_OPS_FILE" docker-compose.sqlserver-tls.yml; do
+for filename in "$COMPOSE_FILE" "$DOCKER_OPS_FILE"; do
     download_file "$filename" "$filename"
     echo "  $filename (atualizado)"
 done
@@ -638,14 +624,41 @@ COMPOSE_ARGS="-f $COMPOSE_FILE"
 if [ -f "$DOCKER_OPS_FILE" ]; then
     COMPOSE_ARGS="$COMPOSE_ARGS -f $DOCKER_OPS_FILE"
 fi
-source scripts/sqlserver-profile.sh
-configure_sqlserver_profile true || { echo "ERRO: configuracao publica do perfil SQL invalida."; exit 1; }
 
 pull_managed_images
 
 echo ""
 echo "[5/5] Iniciando servicos..."
 
+# NAS: DUNCKOPS_BACKUP_NFS=host:/caminho[,opcoes-nfs] cria o volume de backups sobre NFS. API, worker, agente,
+# bancos e runtimes montam esse volume em /backups, entao o destino "Disco local / NAS" passa a gravar no NAS.
+configure_backup_nfs() {
+    local nfs="${DUNCKOPS_BACKUP_NFS:-}" target extra="" host path
+    [ -n "$nfs" ] || return 0
+    if docker volume inspect dunckops-local-backups >/dev/null 2>&1; then
+        echo "Aviso: o volume dunckops-local-backups ja existe; DUNCKOPS_BACKUP_NFS so vale para um volume novo. Nada foi alterado."
+        return 0
+    fi
+    target="${nfs%%,*}"
+    [[ "$nfs" == *,* ]] && extra=",${nfs#*,}"
+    host="${target%%:*}"
+    path="${target#*:}"
+    if [ -z "$host" ] || [ "$host" = "$target" ] || [[ "$path" != /* ]] || [[ "$nfs" =~ [[:space:]\'\"] ]]; then
+        echo "ERRO: DUNCKOPS_BACKUP_NFS deve ser host:/caminho[,opcoes]. Nenhum servico foi iniciado."
+        exit 1
+    fi
+    docker volume create --driver local --opt type=nfs --opt "o=addr=${host},rw,nfsvers=4.1${extra}" \
+        --opt "device=:${path}" dunckops-local-backups >/dev/null
+    if ! docker run --rm -v dunckops-local-backups:/probe docker.io/library/busybox:1.36 \
+        sh -c 'touch /probe/.dunckops-nfs-check && rm /probe/.dunckops-nfs-check' >/dev/null 2>&1; then
+        docker volume rm dunckops-local-backups >/dev/null 2>&1 || true
+        echo "ERRO: o NAS ${target} nao aceitou gravacao (verifique export, rede e root_squash). Nenhum servico foi iniciado."
+        exit 1
+    fi
+    echo "Volume de backups criado no NAS ${target}."
+}
+
+configure_backup_nfs
 docker rm -f dunckops-release-updater >/dev/null 2>&1 || true
 COMPOSE_PROFILES= docker compose $COMPOSE_ARGS up -d
 

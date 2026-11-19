@@ -21,7 +21,7 @@ update_cleanup() {
     local result=$?
     if [ "$result" -ne 0 ]; then
         if [ "$restarting" = false ]; then
-            for file in .env docker-compose.prod.yml docker-compose.docker-ops.prod.yml docker-compose.sqlserver-tls.yml; do
+            for file in .env docker-compose.prod.yml docker-compose.docker-ops.prod.yml; do
                 [ ! -f "$saved_config/$file" ] || cp -p "$saved_config/$file" "$file"
             done
         fi
@@ -33,7 +33,7 @@ update_cleanup() {
     rmdir .platform-update-lock
 }
 trap update_cleanup EXIT
-for file in .env docker-compose.prod.yml docker-compose.docker-ops.prod.yml docker-compose.sqlserver-tls.yml; do
+for file in .env docker-compose.prod.yml docker-compose.docker-ops.prod.yml; do
     [ ! -f "$file" ] || cp -p "$file" "$saved_config/$file"
 done
 
@@ -99,7 +99,7 @@ pull_managed_images() {
         echo "ERRO: DUNCKOPS_VERSION exige release X.Y.Z publicada; nunca latest. Nenhum pull ou restart executado."
         return 1
     fi
-    for key in PHYSICAL_SNAPSHOTS_ENABLED MULTI_ENGINE_OPERATIONS_ENABLED SQLSERVER_OPERATIONS_UNVERIFIED_OPT_IN; do
+    for key in PHYSICAL_SNAPSHOTS_ENABLED MULTI_ENGINE_OPERATIONS_ENABLED; do
         value="$(printf '%s\n' "$config" | sed -n "s/.*\"$key\": \"\([^\"]*\)\".*/\1/p" | sort -u)"
         if [[ "$value" != true && "$value" != false ]]; then
             echo "ERRO: $key deve ser true ou false, igual na API e agent."
@@ -107,20 +107,9 @@ pull_managed_images() {
         fi
         case "$key" in
             MULTI_ENGINE_OPERATIONS_ENABLED) multi="$value" ;;
-            SQLSERVER_OPERATIONS_UNVERIFIED_OPT_IN) sql="$value" ;;
         esac
     done
-    timeout="$(printf '%s\n' "$config" | sed -n 's/.*"SQLSERVER_OPERATIONS_TIMEOUT_SECONDS": "\([^"]*\)".*/\1/p' | sort -u)"
-    if [[ ! "$timeout" =~ ^[1-9][0-9]{1,3}$ ]] || (( timeout < 60 || timeout > 7200 )); then
-        echo "ERRO: SQLSERVER_OPERATIONS_TIMEOUT_SECONDS deve ser inteiro 60..7200, igual na API e agent."
-        return 1
-    fi
-    image="$(printf '%s\n' "$config" | sed -n 's/.*"SQLSERVER_OPERATIONS_RUNTIME_IMAGE": "\([^"]*\)".*/\1/p' | sort -u)"
-    if [ -n "$image" ] && [[ ! "$image" =~ ^sha256:[a-f0-9]{64}$ ]]; then
-        echo "ERRO: SQLSERVER_OPERATIONS_RUNTIME_IMAGE aceita somente ID sha256 imutavel aprovado manualmente, nunca tag."
-        return 1
-    fi
-    runtime_overrides="$(docker compose $COMPOSE_ARGS config --environment | sed -n '/^MULTI_ENGINE_RESTORE_SERVER_IMAGES_PULL=/p; /^MYSQL_OPERATIONS_RUNTIME_IMAGE=/p; /^MARIADB_OPERATIONS_RUNTIME_IMAGE=/p; /^MONGO_OPERATIONS_RUNTIME_IMAGE=/p; /^CASSANDRA_OPERATIONS_RUNTIME_IMAGE=/p; /^SQLSERVER_OPERATIONS_CLIENT_TOOLS_IMAGE=/p; /^MYSQL_RESTORE_SERVER_IMAGE=/p; /^MARIADB_RESTORE_SERVER_IMAGE=/p')"
+    runtime_overrides="$(docker compose $COMPOSE_ARGS config --environment | sed -n '/^MULTI_ENGINE_RESTORE_SERVER_IMAGES_PULL=/p; /^MYSQL_OPERATIONS_RUNTIME_IMAGE=/p; /^MARIADB_OPERATIONS_RUNTIME_IMAGE=/p; /^MONGO_OPERATIONS_RUNTIME_IMAGE=/p; /^CASSANDRA_OPERATIONS_RUNTIME_IMAGE=/p; /^MYSQL_RESTORE_SERVER_IMAGE=/p; /^MARIADB_RESTORE_SERVER_IMAGE=/p')"
     restore_pull="$(printf '%s\n' "$runtime_overrides" | sed -n 's/^MULTI_ENGINE_RESTORE_SERVER_IMAGES_PULL=//p')"
     restore_pull="${restore_pull:-false}"
     if [[ "$restore_pull" != true && "$restore_pull" != false ]]; then
@@ -192,11 +181,9 @@ pull_managed_images() {
                 return 1
             fi
         done
-        for engine in mysql mariadb mongo sqlserver cassandra; do
-            [ "$engine" != sqlserver ] || [ "$sql" = true ] || continue
+        for engine in mysql mariadb mongo cassandra; do
             service="${engine}-operations-runtime"
             override_key="${engine^^}_OPERATIONS_RUNTIME_IMAGE"
-            [ "$engine" != sqlserver ] || override_key=SQLSERVER_OPERATIONS_CLIENT_TOOLS_IMAGE
             image="$(printf '%s\n' "$runtime_overrides" | sed -n "s/^${override_key}=//p")"
             if [ -n "$image" ]; then
                 if ! docker image inspect -- "$image" > /dev/null 2>&1; then
@@ -339,8 +326,8 @@ download_file "$COMPOSE_FILE" "$COMPOSE_FILE.new"
 download_file "$DOCKER_OPS_FILE" "$DOCKER_OPS_FILE.new"
 mv "$COMPOSE_FILE.new" "$COMPOSE_FILE"
 mv "$DOCKER_OPS_FILE.new" "$DOCKER_OPS_FILE"
-download_file "docker-compose.sqlserver-tls.yml" "docker-compose.sqlserver-tls.yml.new"
-mv "docker-compose.sqlserver-tls.yml.new" "docker-compose.sqlserver-tls.yml"
+# SQL Server/Oracle were removed from the product; drop their leftover profile files.
+rm -f docker-compose.sqlserver-tls.yml scripts/sqlserver-profile.sh
 # Signed approval of the target Docker Agent image (remote agents over SSH). A stale envelope is never kept.
 mkdir -p agent-release
 if download_file "agent-release-envelope.json" "agent-release/envelope.json.new" 2> /dev/null; then
@@ -351,10 +338,6 @@ else
     echo "WARN: signed remote agent approval unavailable for v${TARGET_VERSION}; SSH agent installation will require manual approval."
 fi
 chmod 755 agent-release
-download_file "scripts/sqlserver-profile.sh" "scripts/sqlserver-profile.sh.new"
-mv "scripts/sqlserver-profile.sh.new" "scripts/sqlserver-profile.sh"
-source scripts/sqlserver-profile.sh
-configure_sqlserver_profile || { echo "ERRO: perfil SQL invalido; nenhum restart executado."; exit 1; }
 
 echo "Pulling pinned release images..."
 update_state pulling pulling_images

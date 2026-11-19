@@ -1,4 +1,4 @@
 {
-  "version": "0.1.181",
-  "releaseNotes": "Runtime updates use immutable public versioned assets, independently of private GitHub source access."
+  "releaseNotes": "Remote SSH servers now run protected MySQL, MariaDB, MongoDB and Cassandra databases. New backup destinations: Azure Blob, SFTP and local disk/NAS. Cloud databases (RDS, Cloud SQL, Atlas) get scheduled encrypted logical backups with weekly restore proof. Plus protection, alert and storage fixes.",
+  "version": "0.1.182"
 }
