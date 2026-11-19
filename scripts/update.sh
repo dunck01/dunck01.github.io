@@ -82,7 +82,7 @@ platform_image() {
     local service="$1" image
     # Compose includes dependencies in config --images even when a service is supplied.
     image="$(docker compose $COMPOSE_ARGS config --images "$service" |
-        grep -E '^ghcr\.io/[A-Za-z0-9_.-]+/dunckops-'"$service"':[0-9]+[.][0-9]+[.][0-9]+$')" || return 1
+        grep -E '^ghcr\.io/[A-Za-z0-9_.-]+/dunckops-'"$service"':[0-9]+[.][0-9]+[.][0-9]+$' | sort -u)" || return 1
     if [ -z "$image" ] || [[ "$image" == *$'\n'* ]]; then
         echo 'ERROR: expected exactly one pinned platform service image.' >&2
         return 1
@@ -353,6 +353,10 @@ echo "Restarting services..."
 update_state restarting restarting_platform
 restarting=true
 # Do not stop PostgreSQL, MinIO, or customer database containers.
+# --no-deps skips one-shot init services: fix the backups volume owner (uid 1001) explicitly.
+if docker compose $COMPOSE_ARGS config --services | grep -qx backups-init; then
+    COMPOSE_PROFILES= docker compose $COMPOSE_ARGS run --rm --no-deps backups-init
+fi
 COMPOSE_PROFILES= docker compose $COMPOSE_ARGS up -d --no-deps api docker-agent
 wait_install_ready
 COMPOSE_PROFILES= docker compose $COMPOSE_ARGS up -d --no-deps worker web

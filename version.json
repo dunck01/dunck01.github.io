@@ -1,4 +1,4 @@
 {
-  "releaseNotes": "Remote SSH servers now run protected MySQL, MariaDB, MongoDB and Cassandra databases. New backup destinations: Azure Blob, SFTP and local disk/NAS. Cloud databases (RDS, Cloud SQL, Atlas) get scheduled encrypted logical backups with weekly restore proof. Plus protection, alert and storage fixes.",
-  "version": "0.1.182"
+  "releaseNotes": "Fixes the update from 0.1.181: the updater no longer stops with 'expected exactly one pinned platform service image', and it fixes the backups volume permission. The local disk/NAS destination test now reports when /backups is not writable.",
+  "version": "0.1.183"
 }

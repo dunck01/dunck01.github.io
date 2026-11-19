@@ -58,7 +58,8 @@ services:
 
   backups-init:
     container_name: dunckops-backups-init
-    image: ghcr.io/${REGISTRY_OWNER:-dunck01}/dunckops-api:${DUNCKOPS_VERSION}
+    # Same image as dunckops-db (already present offline); a platform image here would break update.sh image pinning.
+    image: postgres:17-alpine
     # API/worker run as uid 1001 and write "Local disk / NAS" objects at the volume root.
     # Only the top directory changes owner; root-squashed NFS keeps its owner (the installer already checked writes).
     user: "0:0"
