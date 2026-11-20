@@ -1,4 +1,4 @@
 {
-  "releaseNotes": "Fixes the update from 0.1.181: the updater no longer stops with 'expected exactly one pinned platform service image', and it fixes the backups volume permission. The local disk/NAS destination test now reports when /backups is not writable.",
-  "version": "0.1.183"
+  "releaseNotes": "MongoDB e Cassandra protegidos em instalações novas; porta publicada fixa nos bancos nativos (Copiar URL correto); PostgreSQL com destino Local/NAS; cadastro de banco externo/nuvem pela tela; correções em restore Cassandra, exclusão de storage e textos.",
+  "version": "0.1.184"
 }

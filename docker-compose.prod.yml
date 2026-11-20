@@ -60,10 +60,11 @@ services:
     container_name: dunckops-backups-init
     # Same image as dunckops-db (already present offline); a platform image here would break update.sh image pinning.
     image: postgres:17-alpine
-    # API/worker run as uid 1001 and write "Local disk / NAS" objects at the volume root.
+    # API/worker run as uid 1001 and write "Local disk / NAS" objects; native engine runtimes (MongoDB/Cassandra)
+    # run as 0:0 with CapDrop ALL (no CAP_DAC_OVERRIDE), so root must own /backups with group 1001 write (0775).
     # Only the top directory changes owner; root-squashed NFS keeps its owner (the installer already checked writes).
     user: "0:0"
-    entrypoint: ["sh", "-c", "chown 1001:1001 /backups || true"]
+    entrypoint: ["sh", "-c", "chown 0:1001 /backups && chmod 0775 /backups || true"]
     volumes:
       - dunckops-local-backups:/backups
     labels:
