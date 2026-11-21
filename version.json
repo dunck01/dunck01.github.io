@@ -1,4 +1,4 @@
 {
-  "releaseNotes": "MongoDB e Cassandra protegidos em instalações novas; porta publicada fixa nos bancos nativos (Copiar URL correto); PostgreSQL com destino Local/NAS; cadastro de banco externo/nuvem pela tela; correções em restore Cassandra, exclusão de storage e textos.",
-  "version": "0.1.184"
+  "releaseNotes": "PostgreSQL 19 gets point-in-time recovery; deleting databases with Local/NAS content and logical restore into Local storage fixed; restore validation no longer fails on new tables; the default storage is the local MinIO; clearer messages while protection runs.",
+  "version": "0.1.185"
 }
