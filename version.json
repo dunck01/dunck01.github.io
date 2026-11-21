@@ -1,4 +1,4 @@
 {
-  "releaseNotes": "PostgreSQL 19 gets point-in-time recovery; deleting databases with Local/NAS content and logical restore into Local storage fixed; restore validation no longer fails on new tables; the default storage is the local MinIO; clearer messages while protection runs.",
-  "version": "0.1.185"
+  "version": "0.1.186",
+  "releaseNotes": "Limite de bancos MySQL, MariaDB, MongoDB e Cassandra por plano passa a ser respeitado; PostgreSQL segue dentro do total do plano."
 }
